@@ -1,0 +1,75 @@
+#!/bin/bash
+
+show_help() {
+  cat << EOF
+worktry - Companion tool for @johnlindquist/worktree (wt)
+
+USAGE:
+  worktry init              Initialize repo with worktrees.json for Claude Code
+  worktry new <name> [base] Create worktree directly (legacy)
+  worktry -h, --help        Show this help message
+
+WORKFLOW:
+  1. worktry init           # Add worktrees.json to your repo
+  2. wt setup feature -c    # Create worktree with Claude Code setup
+
+See: https://github.com/johnlindquist/worktree-cli
+EOF
+}
+
+create_worktrees_json() {
+  if [ -f "worktrees.json" ]; then
+    echo "Error: worktrees.json already exists in current directory."
+    echo "Remove it first or edit manually."
+    exit 1
+  fi
+
+  cat > worktrees.json << 'EOF'
+{
+  "setup-worktree": [
+    "mkdir -p .claude",
+    "cat > .claude/settings.local.json << 'CLAUDE_EOF'\n{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash\",\n      \"Read\",\n      \"Edit\",\n      \"Write\",\n      \"WebFetch\",\n      \"mcp__ide__getDiagnostics\",\n      \"WebSearch\",\n      \"mcp__github__pull_request_read\",\n      \"mcp__github__search_pull_requests\",\n      \"mcp__github__list_pull_requests\"\n    ],\n    \"deny\": [],\n    \"ask\": [\n      \"Bash(rm -rf:*)\",\n      \"Bash(git commit:*)\",\n      \"Bash(git push:*)\"\n    ],\n    \"additionalDirectories\": [\n      \"/Users/ovitrif/repos\"\n    ]\n  }\n}\nCLAUDE_EOF"
+  ]
+}
+EOF
+
+  echo "✓ Created worktrees.json"
+  echo ""
+  echo "Next steps:"
+  echo "  wt setup <branch-name> -c    # Create worktree with Claude Code setup"
+}
+
+create_worktree() {
+  NAME=$1
+  BASE_BRANCH=${2:-HEAD}
+
+  if [ -z "$NAME" ]; then
+    echo "Error: Name argument is required."
+    echo "Usage: worktry new <NAME> [BASE_BRANCH]"
+    exit 1
+  fi
+
+  PROJECT_NAME=$(basename "$PWD")
+  TARGET_PATH="../${PROJECT_NAME}.${NAME}"
+
+  echo "Creating worktree '$NAME' at '$TARGET_PATH' from '$BASE_BRANCH'..."
+  git worktree add "$TARGET_PATH" -b "$NAME" "$BASE_BRANCH"
+}
+
+case "$1" in
+  init)
+    create_worktrees_json
+    ;;
+  new)
+    create_worktree "$2" "$3"
+    ;;
+  -h|--help|"")
+    show_help
+    ;;
+  *)
+    echo "Error: Unknown command '$1'"
+    echo ""
+    show_help
+    exit 1
+    ;;
+esac

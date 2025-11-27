@@ -1,0 +1,15 @@
+---
+name: Worktry - New Worktree
+command: worktry new {{name}} {{base_branch}}
+tags:
+  - git
+  - worktree
+  - productivity
+description: Create a new git worktree with a standardized naming convention (<project>.<name>).
+arguments:
+  - name: name
+    description: The name of the new worktree and branch
+  - name: base_branch
+    description: The base branch to fork from
+    default_value: HEAD
+shells: []
