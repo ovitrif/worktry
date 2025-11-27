@@ -28,7 +28,7 @@ create_worktrees_json() {
 {
   "setup-worktree": [
     "mkdir -p .claude",
-    "cat > .claude/settings.local.json << 'CLAUDE_EOF'\n{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash\",\n      \"Read\",\n      \"Edit\",\n      \"Write\",\n      \"WebFetch\",\n      \"mcp__ide__getDiagnostics\",\n      \"WebSearch\",\n      \"mcp__github__pull_request_read\",\n      \"mcp__github__search_pull_requests\",\n      \"mcp__github__list_pull_requests\"\n    ],\n    \"deny\": [],\n    \"ask\": [\n      \"Bash(rm -rf:*)\",\n      \"Bash(git commit:*)\",\n      \"Bash(git push:*)\"\n    ],\n    \"additionalDirectories\": [\n      \"/Users/ovitrif/repos\"\n    ]\n  }\n}\nCLAUDE_EOF"
+    "printf '{\"permissions\":{\"allow\":[\"Bash\",\"Read\",\"Edit\",\"Write\",\"WebFetch\",\"mcp__ide__getDiagnostics\",\"WebSearch\",\"mcp__github__pull_request_read\",\"mcp__github__search_pull_requests\",\"mcp__github__list_pull_requests\"],\"deny\":[],\"ask\":[\"Bash(rm -rf:*)\",\"Bash(git commit:*)\",\"Bash(git push:*)\"],\"additionalDirectories\":[\"/Users/ovitrif/repos\"]}}' > .claude/settings.local.json"
   ]
 }
 EOF
