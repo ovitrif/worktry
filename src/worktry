@@ -2,16 +2,22 @@
 
 show_help() {
   cat << EOF
-worktry - Companion tool for @johnlindquist/worktree (wt)
+worktry - Companion tool for worktree cli (wt)
 
 USAGE:
-  worktry init              Initialize repo with worktrees.json for Claude Code
+  worktry init              Initialize repo for wt setup
   worktry new <name> [base] Create worktree directly (legacy)
   worktry -h, --help        Show this help message
 
+FILES CREATED BY \`worktry init\`:
+  worktrees.json            Config for wt setup command
+  .worktree-setup.sh        Setup script (creates .claude/settings.local.json)
+  .worktreekeep             List of files to copy to new worktrees (optional)
+
 WORKFLOW:
-  1. worktry init           # Add worktrees.json to your repo
-  2. wt setup feature -c    # Create worktree with Claude Code setup
+  1. worktry init           # Initialize repo
+  2. Edit .worktreekeep     # Add files to copy (e.g., .env, .idea/)
+  3. wt setup feature -c    # Create worktree with setup
 
 See: https://github.com/johnlindquist/worktree-cli
 EOF
@@ -24,9 +30,23 @@ create_worktrees_json() {
     exit 1
   fi
 
+  # Create .worktreekeep template
+  cat > .worktreekeep << 'KEEP_EOF'
+# Files/directories to copy to new worktrees
+# (one path per line, relative to repo root)
+#
+# Examples:
+# .env
+# local.properties
+# .idea/
+# keystore.properties
+KEEP_EOF
+
   # Create setup script
   cat > .worktree-setup.sh << 'SETUP_EOF'
 #!/bin/bash
+
+# Create Claude Code settings
 mkdir -p .claude
 cat > .claude/settings.local.json << 'JSON_EOF'
 {
@@ -55,6 +75,23 @@ cat > .claude/settings.local.json << 'JSON_EOF'
   }
 }
 JSON_EOF
+
+# Copy files listed in .worktreekeep
+if [ -f "$ROOT_WORKTREE_PATH/.worktreekeep" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+    # Trim whitespace
+    line=$(echo "$line" | xargs)
+    src="$ROOT_WORKTREE_PATH/$line"
+    if [ -e "$src" ]; then
+      # Create parent directory if needed
+      mkdir -p "$(dirname "$line")"
+      cp -r "$src" "$line"
+      echo "  Copied: $line"
+    fi
+  done < "$ROOT_WORKTREE_PATH/.worktreekeep"
+fi
 SETUP_EOF
   chmod +x .worktree-setup.sh
 
@@ -67,10 +104,11 @@ SETUP_EOF
 }
 EOF
 
-  echo "✓ Created worktrees.json and .worktree-setup.sh"
+  echo "✓ Created worktrees.json, .worktree-setup.sh, and .worktreekeep"
   echo ""
   echo "Next steps:"
-  echo "  wt setup <branch-name> -c    # Create worktree with Claude Code setup"
+  echo "  1. Edit .worktreekeep to add files to copy (e.g., .env, .idea/)"
+  echo "  2. wt setup <branch-name> -c    # Create worktree with setup"
 }
 
 create_worktree() {

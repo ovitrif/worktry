@@ -1,0 +1,9 @@
+# Files/directories to copy to new worktrees
+# (one path per line, relative to repo root)
+#
+# Examples:
+# .env
+# local.properties
+# .idea/
+# keystore.properties
+.env
