@@ -6,6 +6,9 @@ worktry - Companion tool for worktree cli (wt)
 
 USAGE:
   worktry init              Initialize repo for wt setup
+  worktry go <name>         Navigate to worktree by branch name
+  worktry back              Navigate back to main worktree
+  worktry list              List all worktrees
   worktry new <name> [base] Create worktree directly (legacy)
   worktry -h, --help        Show this help message
 
@@ -18,6 +21,8 @@ WORKFLOW:
   1. worktry init           # Initialize repo
   2. Edit .worktreekeep     # Add files to copy (e.g., .env, .idea/)
   3. wt setup feature -c    # Create worktree with setup
+  4. worktry go feature     # Navigate to worktree
+  5. worktry back           # Return to main repo
 
 See: https://github.com/johnlindquist/worktree-cli
 EOF
@@ -128,9 +133,65 @@ create_worktree() {
   git worktree add "$TARGET_PATH" -b "$NAME" "$BASE_BRANCH"
 }
 
+# Navigate to a worktree by branch name
+go_to_worktree() {
+  local name="$1"
+  if [ -z "$name" ]; then
+    echo "Error: Branch name required." >&2
+    echo "Usage: worktry go <branch-name>" >&2
+    exit 1
+  fi
+
+  # Find worktree path by branch name
+  local path=$(git worktree list --porcelain 2>/dev/null | awk -v branch="$name" '
+    /^worktree / { wt = substr($0, 10) }
+    /^branch / { if ($0 ~ branch "$") print wt }
+  ')
+
+  if [ -z "$path" ]; then
+    echo "Error: No worktree found for branch '$name'" >&2
+    exit 1
+  fi
+
+  # Output path for shell function to cd
+  echo "$path"
+}
+
+# Navigate back to main worktree
+go_back() {
+  # Main worktree is the one without "branch" being a linked worktree
+  # It's typically the first one listed, or we find the one that's not bare
+  local main_path=$(git worktree list --porcelain 2>/dev/null | awk '
+    /^worktree / { wt = substr($0, 10) }
+    /^bare$/ { next }
+    /^HEAD / { if (wt) { print wt; exit } }
+  ')
+
+  if [ -z "$main_path" ]; then
+    # Fallback: first worktree
+    main_path=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+  fi
+
+  if [ -z "$main_path" ]; then
+    echo "Error: Could not find main worktree" >&2
+    exit 1
+  fi
+
+  echo "$main_path"
+}
+
 case "$1" in
   init)
     create_worktrees_json
+    ;;
+  go)
+    go_to_worktree "$2"
+    ;;
+  back)
+    go_back
+    ;;
+  list)
+    git worktree list
     ;;
   new)
     create_worktree "$2" "$3"
