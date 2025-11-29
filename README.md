@@ -21,7 +21,7 @@ worktry 1                 # Jump to worktree
 worktry 0                 # Jump back to main
 ```
 
-## 🤔 What is this?
+## 🤔 Features
 
 **worktry** extends [worktree-cli](https://github.com/johnlindquist/worktree-cli) with:
 
@@ -52,7 +52,7 @@ This installs:
 
 ## 📖 Usage
 
-### 1. Initialize a repo
+### 1. Initialize A Repo
 
 ```bash
 cd your-project
@@ -64,7 +64,7 @@ Creates:
 - `.worktree-setup.sh` — Setup script (Claude permissions + file copying)
 - `.worktreekeep` — List of files to copy
 
-### 2. Configure files to copy
+### 2. Configure Files To Copy
 
 ```bash
 worktry keep    # or: worktry k
@@ -79,7 +79,7 @@ local.properties
 keystore.properties
 ```
 
-### 3. Create worktrees
+### 3. Create Worktrees
 
 ```bash
 wt setup feature-name -c
@@ -129,6 +129,12 @@ Contributions welcome! Feel free to:
 2. Create a feature branch
 3. Submit a PR
 
+### AI Agents
+
+This project supports vibe-coding with AI agents. See [AGENTS.md](AGENTS.md) for project context and coding rules.
+
 ## 📄 License
 
 [The Unlicense](https://unlicense.org) — Public domain. Do whatever you want.
+
+See [LICENSE](LICENSE).
