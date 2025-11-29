@@ -181,19 +181,19 @@ go_back() {
 }
 
 case "$1" in
-  init)
+  init|i)
     create_worktrees_json
     ;;
   go)
     go_to_worktree "$2"
     ;;
-  back)
+  back|b)
     go_back
     ;;
-  list)
+  list|ls|l)
     git worktree list
     ;;
-  new)
+  new|n)
     create_worktree "$2" "$3"
     ;;
   -h|--help|"")
