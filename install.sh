@@ -45,16 +45,31 @@ fi
 if [ -n "$RC_FILE" ]; then
   if ! grep -q "worktry()" "$RC_FILE" 2>/dev/null; then
     echo ""
-    echo "Adding shell function to $RC_FILE for 'worktry go/back' commands..."
-    echo "" >> "$RC_FILE"
-    echo "$SHELL_FUNC" >> "$RC_FILE"
-    echo "✓ Added worktry function to $RC_FILE"
-echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
+    echo "Navigation commands (worktry go/back/0-9) require a shell function."
+    read -p "Add shell function to $RC_FILE? [Y/n] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+      echo "" >> "$RC_FILE"
+      echo "$SHELL_FUNC" >> "$RC_FILE"
+      echo "✓ Added worktry function to $RC_FILE"
+      echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
+    else
+      echo "Skipped. To add manually, append to $RC_FILE:"
+      echo ""
+      echo "$SHELL_FUNC"
+    fi
   else
     echo "✓ Shell function already exists in $RC_FILE"
   fi
+else
+  echo ""
+  echo "Could not detect shell rc file. Add this function to your shell config:"
+  echo ""
+  echo "$SHELL_FUNC"
 fi
 
 echo ""
-echo "Success! 'worktry' has been installed."
+echo "✓ worktry installed to $INSTALL_BIN"
+echo "✓ Warp workflow installed to $INSTALL_WORKFLOWS"
+echo ""
 echo "Make sure '$INSTALL_BIN' is in your PATH."
