@@ -180,6 +180,48 @@ go_back() {
   echo "$main_path"
 }
 
+# Edit .worktreekeep file
+edit_worktreekeep() {
+  local keepfile=".worktreekeep"
+  
+  # Create file if it doesn't exist
+  if [ ! -f "$keepfile" ]; then
+    cat > "$keepfile" << 'KEEP_EOF'
+# Files/directories to copy to new worktrees
+# (one path per line, relative to repo root)
+#
+# Examples:
+# .env
+# local.properties
+# .idea/
+# keystore.properties
+KEEP_EOF
+    echo "Created $keepfile"
+  fi
+
+  # Check for editor
+  local editor="${EDITOR:-${VISUAL:-}}"
+  
+  if [ -n "$editor" ]; then
+    $editor "$keepfile"
+  else
+    echo "No default text editor configured."
+    echo ""
+    echo "To set one, add to your shell config (~/.zshrc or ~/.bashrc):"
+    echo "  export EDITOR=nano      # or vim, subl, code, etc."
+    echo ""
+    read -p "Open with VSCode instead? [y/N] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo ""
+      echo "Note: This assumes VSCode is installed and the 'code' command"
+      echo "      is available in your PATH."
+      echo ""
+      code "$keepfile"
+    fi
+  fi
+}
+
 case "$1" in
   init|i)
     create_worktrees_json
@@ -192,6 +234,9 @@ case "$1" in
     ;;
   list|ls|l)
     git worktree list
+    ;;
+  keep|k)
+    edit_worktreekeep
     ;;
   new|n)
     create_worktree "$2" "$3"
