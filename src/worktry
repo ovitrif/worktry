@@ -180,6 +180,47 @@ go_back() {
   echo "$main_path"
 }
 
+# Navigate to worktree by index (0 = main, 1-9 = linked worktrees)
+go_to_index() {
+  local index="$1"
+  
+  # Index 0 = main worktree
+  if [ "$index" = "0" ]; then
+    go_back
+    return
+  fi
+  
+  # Get worktree at index (1-based from linked worktrees, which start at line 2)
+  local path=$(git worktree list 2>/dev/null | sed -n "$((index + 1))p" | awk '{print $1}')
+  
+  if [ -z "$path" ]; then
+    echo "Error: No worktree at index $index" >&2
+    echo "" >&2
+    echo "Available worktrees:" >&2
+    local i=0
+    git worktree list 2>/dev/null | while IFS= read -r line; do
+      echo "$i  $line" >&2
+      ((i++))
+    done
+    echo "" >&2
+    local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+    echo "wt setup feature -c    # Create worktree with setup" >&2
+    echo "It will be available as: worktry $total" >&2
+    exit 1
+  fi
+  
+  echo "$path"
+}
+
+# List worktrees with index prefix
+list_indexed() {
+  local i=0
+  git worktree list 2>/dev/null | while IFS= read -r line; do
+    echo "$i  $line"
+    ((i++))
+  done
+}
+
 # Edit .worktreekeep file
 edit_worktreekeep() {
   local keepfile=".worktreekeep"
@@ -243,6 +284,9 @@ case "$1" in
     ;;
   -h|--help|"")
     show_help
+    ;;
+  [0-9])
+    go_to_index "$1"
     ;;
   *)
     echo "Error: Unknown command '$1'"

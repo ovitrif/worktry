@@ -18,10 +18,10 @@ chmod +x "$INSTALL_BIN/worktry"
 echo "Installing workflow to $INSTALL_WORKFLOWS..."
 cp workflows/worktry.yaml "$INSTALL_WORKFLOWS/worktry.yaml"
 
-# Shell function for cd support (go/back commands)
+# Shell function for cd support (go/back/numeric commands)
 SHELL_FUNC='# worktry - cd wrapper for navigation commands
 worktry() {
-  if [[ "$1" == "go" || "$1" == "back" ]]; then
+  if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]$ ]]; then
     local target
     target=$(command worktry "$@")
     if [[ -d "$target" ]]; then
@@ -49,7 +49,7 @@ if [ -n "$RC_FILE" ]; then
     echo "" >> "$RC_FILE"
     echo "$SHELL_FUNC" >> "$RC_FILE"
     echo "✓ Added worktry function to $RC_FILE"
-    echo "  Run 'source $RC_FILE' or restart your terminal to use 'worktry go/back'"
+echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
   else
     echo "✓ Shell function already exists in $RC_FILE"
   fi
