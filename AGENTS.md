@@ -4,11 +4,11 @@ This document provides context and rules for AI agents contributing to worktry.
 
 ## Project Overview
 
-**worktry** is a companion tool for [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`) that provides:
+**worktry** helps you run multiple AI agents in parallel using git worktrees. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
 
-- Quick navigation between git worktrees (`worktry 0`, `worktry 1`, etc.)
-- Automatic copying of gitignored files (`.env`, `.idea/`, etc.) to new worktrees
-- Claude Code setup with `.claude/settings.local.json`
+- Quick navigation between worktrees (`worktry 0`, `worktry 1`, etc.)
+- Automatic copying of config files (`.env`, `.idea/`, etc.) to new worktrees
+- Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 
 ## Project Structure
 

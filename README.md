@@ -1,11 +1,24 @@
 # 🌳 worktry
 
-> Companion tool for [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`) — quick navigation, config file copying, and Claude Code setup for git worktrees.
+> Run multiple AI agents in parallel with git worktrees.
+
+![worktry screenshot](doc/img/worktry.png)
+
+## 🤔 Why Worktrees For AI?
+
+When you're vibe-coding with AI agents (Claude Code, Cursor, Windsurf, etc.), they often need to make sweeping changes. Running multiple agents on the same codebase creates conflicts.
+
+**Git worktrees** let you have multiple checkouts of the same repo side-by-side. Each agent gets its own isolated workspace, but they all share the same git history.
+
+**worktry** makes this workflow fast:
+- 🚀 Jump between worktrees instantly (`worktry 1`, `worktry 2`, etc.)
+- 📁 Auto-copy config files (`.env`, `.idea/`) to new worktrees
+- 🤖 Auto-setup Claude Code permissions
 
 ## ⚡ Quick Start
 
 ```bash
-# Install worktree-cli (if not already)
+# Install dependencies
 npm install -g @johnlindquist/worktree
 
 # Install worktry
@@ -15,26 +28,17 @@ cd worktry && ./install.sh
 # In your project
 cd your-project
 worktry init              # Setup worktrees.json
-worktry keep              # Edit files to copy (.env, .idea/, etc.)
 wt setup feature -c       # Create worktree with setup
 worktry 1                 # Jump to worktree
 worktry 0                 # Jump back to main
 ```
 
-## 🤔 Features
-
-**worktry** extends [worktree-cli](https://github.com/johnlindquist/worktree-cli) with:
-
-- 🔧 **Auto-setup** — Creates `worktrees.json` config for `wt setup`
-- 📁 **File copying** — Copies `.env`, `.idea/`, and other gitignored files to new worktrees
-- 🤖 **Claude Code** — Auto-creates `.claude/settings.local.json` with sensible permissions
-- 🚀 **Fast navigation** — Jump between worktrees with `worktry 0`, `worktry 1`, etc.
-
 ## 📦 Installation
 
 ### Prerequisites
 
-- [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`npm install -g @johnlindquist/worktree`)
+- **Node.js** (v18+) — [nodejs.org](https://nodejs.org)
+- **worktree-cli** — `npm install -g @johnlindquist/worktree`
 - `~/.local/bin` in your PATH
 
 ### Install

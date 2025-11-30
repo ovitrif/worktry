@@ -2,32 +2,29 @@
 
 show_help() {
   cat << EOF
-worktry - Companion tool for worktree-cli (wt)
+worktry - Run AI agents in parallel with git worktrees
 
-COMMANDS:
-  init, i                   Initialize repo with worktrees.json and setup files
-  go <name>                 Navigate to worktree by branch name
-  back, b                   Navigate back to main worktree (index 0)
-  list, ls, l               List all worktrees
-  keep, k                   Edit .worktreekeep file (files to copy to worktrees)
-  new, n <name> [base]      Create worktree directly (legacy)
-  0-9                       Navigate to worktree by index (0 = main)
-  -h, --help                Show this help message
+USAGE:
+  worktry init              Initialize repo for wt setup
+  worktry go <name>         Navigate to worktree by branch name
+  worktry back              Navigate back to main worktree
+  worktry list              List all worktrees
+  worktry new <name> [base] Create worktree directly (legacy)
+  worktry -h, --help        Show this help message
 
 FILES CREATED BY \`worktry init\`:
   worktrees.json            Config for wt setup command
   .worktree-setup.sh        Setup script (creates .claude/settings.local.json)
-  .worktreekeep             List of files to copy to new worktrees
+  .worktreekeep             List of files to copy to new worktrees (optional)
 
 WORKFLOW:
   1. worktry init           # Initialize repo
-  2. worktry keep           # Edit .worktreekeep (add .env, .idea/, etc.)
+  2. Edit .worktreekeep     # Add files to copy (e.g., .env, .idea/)
   3. wt setup feature -c    # Create worktree with setup
-  4. worktry 1              # Navigate to worktree (or: worktry go feature)
-  5. worktry 0              # Return to main repo (or: worktry back)
+  4. worktry go feature     # Navigate to worktree
+  5. worktry back           # Return to main repo
 
 See: https://github.com/johnlindquist/worktree-cli
-See: https://github.com/ovitrif/worktry
 EOF
 }
 
