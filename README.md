@@ -1,6 +1,6 @@
 # 🌳 worktry
 
-> Work on multiple features in parallel with Claude Code and git worktrees.
+> Work on multiple features in parallel with AI agents and git worktrees.
 
 ![worktry screenshot](doc/img/worktry.png)
 
