@@ -1,19 +1,17 @@
 # 🌳 worktry
 
-> Run multiple AI agents in parallel with git worktrees.
+> Work on multiple features in parallel with Claude Code and git worktrees.
 
 ![worktry screenshot](doc/img/worktry.png)
 
 ## 🤔 Why?
 
-When you're vibe-coding with AI agents (Claude Code, Cursor, Windsurf, etc.), they often need to make sweeping changes. Running multiple agents on the same codebase creates conflicts.
+Work on multiple features in parallel — each in its own isolated worktree, each with Claude Code ready to go.
 
-**Git worktrees** let you have multiple checkouts of the same repo side-by-side. Each agent gets its own isolated workspace, but they all share the same git history.
-
-**worktry** makes this workflow fast:
+**worktry** sets up your repo for parallel AI development:
+- 🤖 Auto-configures Claude Code permissions in each worktree
+- 📁 Copies config files (`.env`, `.idea/`) to new worktrees
 - 🚀 Jump between worktrees instantly (`worktry 1`, `worktry 2`, etc.)
-- 📁 Auto-copy config files (`.env`, `.idea/`) to new worktrees
-- 🤖 Auto-setup Claude Code permissions
 
 ## ⚡ Quick Start
 
