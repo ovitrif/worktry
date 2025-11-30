@@ -4,7 +4,7 @@
 
 ![worktry screenshot](doc/img/worktry.png)
 
-## 🤔 Why Worktrees For AI?
+## 🤔 Why?
 
 When you're vibe-coding with AI agents (Claude Code, Cursor, Windsurf, etc.), they often need to make sweeping changes. Running multiple agents on the same codebase creates conflicts.
 
