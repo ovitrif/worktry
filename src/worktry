@@ -5,12 +5,12 @@ show_help() {
 worktry - Run AI agents in parallel with git worktrees
 
 USAGE:
-  worktry init              Initialize repo for wt setup
-  worktry go <name>         Navigate to worktree by branch name
-  worktry back              Navigate back to main worktree
-  worktry list              List all worktrees
-  worktry new <name> [-b BASE] Create worktree directly with optional base branch
-  worktry -h, --help        Show this help message
+  worktry init                   Initialize repo for wt setup
+  worktry go <name>              Navigate to worktree by branch name
+  worktry back                   Navigate back to main worktree
+  worktry list                   List all worktrees
+  worktry new <name> [-b BASE]   Create worktree with setup
+  worktry -h, --help             Show this help message
 
 FILES CREATED BY \`worktry init\`:
   worktrees.json            Config for wt setup command
