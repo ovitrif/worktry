@@ -111,7 +111,7 @@ worktry back              # Jump back to main (alias for 0)
 | `worktry back` | `b` | Navigate back to main worktree |
 | `worktry list` | `ls`, `l` | List all worktrees |
 | `worktry keep` | `k` | Edit .worktreekeep file |
-| `worktry new <name> [base]` | `n` | Create worktree directly |
+| `worktry new <name> [-b BASE]` | `n` | Create worktree directly with optional base branch |
 | `worktry 0-9` | — | Navigate to worktree by index |
 | `worktry --help` | `-h` | Show help |
 

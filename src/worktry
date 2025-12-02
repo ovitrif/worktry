@@ -9,7 +9,7 @@ USAGE:
   worktry go <name>         Navigate to worktree by branch name
   worktry back              Navigate back to main worktree
   worktry list              List all worktrees
-  worktry new <name> [base] Create worktree directly (legacy)
+  worktry new <name> [-b BASE] Create worktree directly with optional base branch
   worktry -h, --help        Show this help message
 
 FILES CREATED BY \`worktry init\`:
@@ -117,20 +117,46 @@ EOF
 }
 
 create_worktree() {
-  NAME=$1
-  BASE_BRANCH=${2:-HEAD}
+  local name=""
+  local base_branch="HEAD"
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base|-b)
+        base_branch="$2"
+        shift 2
+        ;;
+      *)
+        if [ -z "$name" ]; then
+          name="$1"
+        else
+          echo "Error: Unknown argument '$1'" >&2
+          echo "Usage: worktry new <NAME> [--base|-b BASE_BRANCH]" >&2
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
 
-  if [ -z "$NAME" ]; then
+  if [ -z "$name" ]; then
     echo "Error: Name argument is required."
-    echo "Usage: worktry new <NAME> [BASE_BRANCH]"
+    echo "Usage: worktry new <NAME> [--base|-b BASE_BRANCH]"
     exit 1
   fi
 
   PROJECT_NAME=$(basename "$PWD")
-  TARGET_PATH="../${PROJECT_NAME}.${NAME}"
+  TARGET_PATH="../${PROJECT_NAME}.${name}"
 
-  echo "Creating worktree '$NAME' at '$TARGET_PATH' from '$BASE_BRANCH'..."
-  git worktree add "$TARGET_PATH" -b "$NAME" "$BASE_BRANCH"
+  echo "Creating worktree '$name' at '$TARGET_PATH' from '$base_branch'..."
+  git worktree add "$TARGET_PATH" -b "$name" "$base_branch"
+  
+  # Run setup if .worktree-setup.sh exists
+  if [ -f ".worktree-setup.sh" ]; then
+    echo "Running setup..."
+    (cd "$TARGET_PATH" && ROOT_WORKTREE_PATH="$PWD/.." bash "$PWD/../.worktree-setup.sh")
+  fi
 }
 
 # Navigate to a worktree by branch name
@@ -280,7 +306,8 @@ case "$1" in
     edit_worktreekeep
     ;;
   new|n)
-    create_worktree "$2" "$3"
+    shift
+    create_worktree "$@"
     ;;
   -h|--help|"")
     show_help
