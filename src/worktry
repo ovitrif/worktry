@@ -2,7 +2,7 @@
 
 show_help() {
   cat << EOF
-worktry - Run AI agents in parallel with git worktrees
+worktry - Work on multiple features in parallel with AI agents
 
 USAGE:
   worktry init                   Initialize repo for wt setup
