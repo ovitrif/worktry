@@ -1,17 +1,25 @@
-# 🌳 worktry
+```
+██╗     ██╗                   ██╗   ██████████╗
+██║     ██║                   ██║   ╚═══██╔═══╝
+██║ ██╗ ██║  ██████╗  ██████╗ ██║ ██╗   ██║  ██████╗ ██╗   ██╗
+██║████╗██║ ██╚═══██║ ██╔═══╝ █████╔╝   ██║  ██╔═══╝  ██╗ ██╔╝
+ ███║ ███╔╝  ██████╔╝ ██║     ██╔═██╗   ██║  ██║       ████╔╝
+ ╚══╝ ╚══╝   ╚═════╝  ╚═╝     ╚═╝ ╚═╝   ╚═╝  ╚═╝        ██╔╝
+ ██ Vibe code in parallel using git worktrees or clones ██║
+ █████████████████████████████████████████████████████████║
+ ╚════════════════════════════════════════════════════════╝
+```
 
-> Work on multiple features in parallel with AI agents and git worktrees.
-
-![worktry screenshot](doc/img/worktry.png)
+![worktry screenshot](doc/img/screenshot.png)
 
 ## 🤔 Why?
 
-Work on multiple features in parallel — each in its own isolated worktree, each with Claude Code ready to go.
+Work on multiple features in parallel — each in its own isolated worktree or clone, with Claude Code ready to go.
 
 **worktry** sets up your repo for parallel AI development:
-- 🤖 Auto-configures Claude Code permissions in each worktree
-- 📁 Copies config files (`.env`, `.idea/`) to new worktrees
-- 🚀 Jump between worktrees instantly (`worktry 1`, `worktry 2`, etc.)
+- 🤖 Auto-configures Claude Code permissions in each worktree/clone
+- 📁 Copies config files (`.env`, `.idea/`) to new worktrees/clones
+- 🚀 Jump between worktrees or clones instantly (`worktry 1`, `worktry 2`, etc.)
 
 ## ⚡ Quick Start
 
@@ -26,6 +34,7 @@ cd worktry && ./install.sh
 # In your project
 cd your-project
 worktry init              # Setup worktrees.json
+worktry config            # Add files to copy-over list
 wt setup feature -c       # Create worktree with setup
 worktry 1                 # Jump to worktree
 worktry 0                 # Jump back to main
@@ -62,23 +71,26 @@ worktry init    # or: worktry i
 ```
 
 Creates:
-- `worktrees.json` — Config for `wt setup`
+- `worktrees.json` — Config for `wt setup` + `copy-over` list
 - `.worktree-setup.sh` — Setup script (Claude permissions + file copying)
-- `.worktreekeep` — List of files to copy
 
 ### 2. Configure Files To Copy
 
 ```bash
-worktry keep    # or: worktry k
+worktry config    # or: worktry c
 ```
 
-Edit `.worktreekeep` to list files/directories:
+Edit the `copy-over` array in `worktrees.json`:
 
-```
-.env
-local.properties
-.idea/
-keystore.properties
+```json
+{
+  "setup-worktree": ["bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"],
+  "copy-over": [
+    ".env",
+    "local.properties",
+    ".idea/"
+  ]
+}
 ```
 
 ### 3. Create Worktrees
@@ -90,38 +102,47 @@ wt setup feature-name -c
 Creates a worktree with:
 - New branch `feature-name`
 - `.claude/settings.local.json` with permissions
-- Copies of files from `.worktreekeep`
+- Copies of files from `copy-over` list
 
-### 4. Navigate
+### 4. Setup Existing Clones
+
+If you prefer cloning over worktrees:
 
 ```bash
-worktry 1                 # Jump to first worktree
-worktry 2                 # Jump to second worktree
-worktry 0                 # Jump back to main
-worktry go feature-name   # Jump by branch name
-worktry back              # Jump back to main (alias for 0)
+gh repo clone user/repo repo-2    # Clone manually
+worktry setup ../repo-2           # Apply worktry setup to clone
+```
+
+### 5. Navigate
+
+```bash
+worktry 0                 # Jump to main repo
+worktry 1                 # Jump to first worktree/clone
+worktry 2                 # Jump to second worktree/clone
+worktry go feature-name   # Jump by branch name (worktree mode)
+worktry back              # Jump back to main (alias: b)
 ```
 
 ## 🛠️ Commands
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `worktry init` | `i` | Initialize repo with worktrees.json |
+| `worktry init` | `i` | Initialize repo for worktry |
+| `worktry list` | `ls`, `l` | List worktrees or clones |
 | `worktry go <name>` | — | Navigate to worktree by branch name |
 | `worktry back` | `b` | Navigate back to main worktree |
-| `worktry list` | `ls`, `l` | List all worktrees |
-| `worktry keep` | `k` | Edit .worktreekeep file |
-| `worktry new <name> [-b BASE]` | `n` | Create worktree directly with optional base branch |
-| `worktry 0-9` | — | Navigate to worktree by index |
+| `worktry config` | `c` | Edit worktrees.json config |
+| `worktry setup <dir>` | `s` | Apply worktry setup to a clone |
+| `worktry new <name> [-b BASE]` | `n` | Create worktree with setup |
+| `worktry 0-9` | — | Navigate to worktree/clone by index |
 | `worktry --help` | `-h` | Show help |
 
 ## 📁 Files
 
 | File | Description |
 |------|-------------|
-| `worktrees.json` | Config read by `wt setup` |
-| `.worktree-setup.sh` | Runs in new worktrees (creates `.claude/`, copies files) |
-| `.worktreekeep` | Files/dirs to copy (one per line, relative paths) |
+| `worktrees.json` | Config for `wt setup` + `copy-over` list |
+| `.worktree-setup.sh` | Setup script (Claude permissions, file copying) |
 
 ## 🤝 Contributing
 
