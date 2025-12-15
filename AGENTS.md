@@ -4,11 +4,12 @@ This document provides context and rules for AI agents contributing to worktry.
 
 ## Project Overview
 
-**worktry** helps you run multiple AI agents in parallel using git worktrees. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
+**worktry** helps you run multiple AI agents in parallel using git worktrees or repo clones. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
 
-- Quick navigation between worktrees (`worktry 0`, `worktry 1`, etc.)
-- Automatic copying of config files (`.env`, `.idea/`, etc.) to new worktrees
+- Quick navigation between worktrees or clones (`worktry 0`, `worktry 1`, etc.)
+- Automatic copying of config files (`.env`, `.idea/`, etc.) via `copy-over` in `worktrees.json`
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
+- Support for both worktree mode and clone mode
 
 ## Project Structure
 
@@ -29,12 +30,15 @@ worktry/
 
 Main bash script containing:
 - `show_help()` — Help message with all commands
-- `create_worktrees_json()` — Creates config files for `wt setup`
-- `create_worktree()` — Legacy direct worktree creation
+- `create_worktrees_json()` — Creates `worktrees.json` and `.worktree-setup.sh`
+- `create_worktree()` — Direct worktree creation
 - `go_to_worktree()` — Navigate by branch name
 - `go_back()` — Navigate to main worktree
-- `go_to_index()` — Navigate by numeric index (0-9)
-- `edit_worktreekeep()` — Open `.worktreekeep` in editor
+- `go_to_index()` — Navigate by numeric index (0-9), supports clone mode
+- `is_clone_mode()` — Detect if using clones vs worktrees
+- `list_clones()` — Find sibling clone directories
+- `setup_clone()` — Apply worktry setup to existing clone
+- `edit_config()` — Open `worktrees.json` in editor
 - Case statement routing all commands and aliases
 
 ### `install.sh`
@@ -60,10 +64,11 @@ Installs:
 
 When adding new commands:
 1. Add the function implementation
-2. Add case entry with any aliases (e.g., `keep|k)`)
+2. Add case entry with any aliases (e.g., `config|c)`)
 3. Update `show_help()` with the new command
 4. Update `install.sh` shell function if the command needs `cd` support
 5. Update README.md Commands table
+6. Update AGENTS.md Key Files section if adding new functions
 
 ### Commit Messages
 
