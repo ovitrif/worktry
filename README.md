@@ -1,3 +1,7 @@
+# Worktry (wk CLI)
+
+Vibe code in parallel using git worktrees or clones.
+
 ```
 ██╗     ██╗                   ██╗   ██████████╗
 ██║     ██║                   ██║   ╚═══██╔═══╝
@@ -10,7 +14,7 @@
  ╚════════════════════════════════════════════════════════╝
 ```
 
-![worktry screenshot](doc/img/screenshot.png)
+![worktry screenshot](doc/screenshot.png)
 
 ## 🤔 Why?
 
