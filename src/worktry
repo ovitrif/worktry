@@ -2,29 +2,40 @@
 
 show_help() {
   cat << EOF
-worktry - Work on multiple features in parallel with AI agents
+██╗     ██╗                   ██╗   ██████████╗
+██║     ██║                   ██║   ╚═══██╔═══╝
+██║ ██╗ ██║  ██████╗  ██████╗ ██║ ██╗   ██║  ██████╗ ██╗   ██╗
+██║████╗██║ ██╚═══██║ ██╔═══╝ █████╔╝   ██║  ██╔═══╝  ██╗ ██╔╝
+ ███║ ███╔╝  ██████╔╝ ██║     ██╔═██╗   ██║  ██║       ████╔╝
+ ╚══╝ ╚══╝   ╚═════╝  ╚═╝     ╚═╝ ╚═╝   ╚═╝  ╚═╝        ██╔╝
+ ██ Vibe code in parallel using git worktrees or clones ██║
+ █████████████████████████████████████████████████████████║
+ ╚════════════════════════════════════════════════════════╝
 
 USAGE:
-  worktry init                   Initialize repo for wt setup
-  worktry go <name>              Navigate to worktree by branch name
-  worktry back                   Navigate back to main worktree
-  worktry list                   List all worktrees
-  worktry new <name> [-b BASE]   Create worktree with setup
-  worktry -h, --help             Show this help message
+worktry <command> [options]
+worktry <0-9>                   Quick navigation by index
 
-FILES CREATED BY \`worktry init\`:
-  worktrees.json            Config for wt setup command
-  .worktree-setup.sh        Setup script (creates .claude/settings.local.json)
-  .worktreekeep             List of files to copy to new worktrees (optional)
+COMMANDS:
+init, i                   Initialize repo for worktry
+list, ls, l               List worktrees or clones
+go <name>                 Navigate to worktree by branch name
+back, b                   Navigate back to main worktree
+config, c                 Edit worktrees.json config
+setup <dir>               Apply worktry setup to a clone
+new <name> [-b BASE]      Create worktree with setup
+-h, --help                Show this help
 
-WORKFLOW:
-  1. worktry init           # Initialize repo
-  2. Edit .worktreekeep     # Add files to copy (e.g., .env, .idea/)
-  3. wt setup feature -c    # Create worktree with setup
-  4. worktry go feature     # Navigate to worktree
-  5. worktry back           # Return to main repo
+NAVIGATION:
+worktry 0                 Jump to main repo
+worktry 1                 Jump to first worktree/clone
+worktry 2-9               Jump to 2nd-9th worktree/clone
 
-See: https://github.com/johnlindquist/worktree-cli
+FILES:
+worktrees.json            Config for wt setup + copy-over list
+.worktree-setup.sh        Setup script (Claude permissions, file copying)
+
+See: https://github.com/ovitrif/worktry
 EOF
 }
 
@@ -34,18 +45,6 @@ create_worktrees_json() {
     echo "Remove it first or edit manually."
     exit 1
   fi
-
-  # Create .worktreekeep template
-  cat > .worktreekeep << 'KEEP_EOF'
-# Files/directories to copy to new worktrees
-# (one path per line, relative to repo root)
-#
-# Examples:
-# .env
-# local.properties
-# .idea/
-# keystore.properties
-KEEP_EOF
 
   # Create setup script
   cat > .worktree-setup.sh << 'SETUP_EOF'
@@ -81,38 +80,39 @@ cat > .claude/settings.local.json << 'JSON_EOF'
 }
 JSON_EOF
 
-# Copy files listed in .worktreekeep
-if [ -f "$ROOT_WORKTREE_PATH/.worktreekeep" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Skip comments and empty lines
-    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
-    # Trim whitespace
-    line=$(echo "$line" | xargs)
-    src="$ROOT_WORKTREE_PATH/$line"
+# Copy files from copy-over array in worktrees.json
+if [ -f "$ROOT_WORKTREE_PATH/worktrees.json" ]; then
+  # Parse copy-over array using simple grep/sed (no jq dependency)
+  copy_items=$(grep -A 100 '"copy-over"' "$ROOT_WORKTREE_PATH/worktrees.json" | \
+    grep -oE '"[^"]+"' | tr -d '"' | grep -v 'copy-over')
+  
+  for item in $copy_items; do
+    src="$ROOT_WORKTREE_PATH/$item"
     if [ -e "$src" ]; then
-      # Create parent directory if needed
-      mkdir -p "$(dirname "$line")"
-      cp -r "$src" "$line"
-      echo "  Copied: $line"
+      mkdir -p "$(dirname "$item")"
+      cp -r "$src" "$item"
+      echo "  Copied: $item"
     fi
-  done < "$ROOT_WORKTREE_PATH/.worktreekeep"
+  done
 fi
 SETUP_EOF
   chmod +x .worktree-setup.sh
 
-  # Create worktrees.json
+  # Create worktrees.json with copy-over array
   cat > worktrees.json << 'EOF'
 {
   "setup-worktree": [
     "bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"
+  ],
+  "copy-over": [
   ]
 }
 EOF
 
-  echo "✓ Created worktrees.json, .worktree-setup.sh, and .worktreekeep"
+  echo "✓ Created worktrees.json and .worktree-setup.sh"
   echo ""
   echo "Next steps:"
-  echo "  1. Edit .worktreekeep to add files to copy (e.g., .env, .idea/)"
+  echo "  1. worktry config               # Add files to copy-over list"
   echo "  2. wt setup <branch-name> -c    # Create worktree with setup"
 }
 
@@ -206,71 +206,154 @@ go_back() {
   echo "$main_path"
 }
 
-# Navigate to worktree by index (0 = main, 1-9 = linked worktrees)
+# Check if in clone mode (no linked worktrees, but sibling clones exist)
+is_clone_mode() {
+  local wt_count=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+  # Clone mode if only 1 worktree (main) exists
+  [[ "$wt_count" -le 1 ]]
+}
+
+# List sibling clone directories (same repo name prefix)
+list_clones() {
+  local current_dir=$(pwd)
+  local parent_dir=$(dirname "$current_dir")
+  local base_name=$(basename "$current_dir")
+  
+  # Remove any suffix like -2, -3, .feature to get base name
+  base_name=$(echo "$base_name" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
+  
+  # Find all directories matching base_name* that are git repos, sorted
+  local clones=()
+  while IFS= read -r dir; do
+    if [[ -d "$dir/.git" || -f "$dir/.git" ]]; then
+      clones+=("$dir")
+    fi
+  done < <(find "$parent_dir" -maxdepth 1 -type d -name "${base_name}*" 2>/dev/null | sort)
+  
+  printf '%s\n' "${clones[@]}"
+}
+
+# Navigate to worktree/clone by index (0 = main, 1-9 = others)
 go_to_index() {
   local index="$1"
   
-  # Index 0 = main worktree
-  if [ "$index" = "0" ]; then
-    go_back
-    return
+  if is_clone_mode; then
+    # Clone mode: navigate by clone index
+    local clones=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && clones+=("$line")
+    done < <(list_clones)
+    
+    if [[ $index -ge ${#clones[@]} ]]; then
+      echo "Error: No clone at index $index" >&2
+      echo "" >&2
+      echo "Available clones:" >&2
+      local i=0
+      for clone in "${clones[@]}"; do
+        echo "$i  $clone" >&2
+        ((i++))
+      done
+      exit 1
+    fi
+    
+    echo "${clones[$index]}"
+  else
+    # Worktree mode
+    if [ "$index" = "0" ]; then
+      go_back
+      return
+    fi
+    
+    local path=$(git worktree list 2>/dev/null | sed -n "$((index + 1))p" | awk '{print $1}')
+    
+    if [ -z "$path" ]; then
+      echo "Error: No worktree at index $index" >&2
+      echo "" >&2
+      echo "Available worktrees:" >&2
+      local i=0
+      git worktree list 2>/dev/null | while IFS= read -r line; do
+        echo "$i  $line" >&2
+        ((i++))
+      done
+      echo "" >&2
+      local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+      echo "wt setup feature -c    # Create worktree with setup" >&2
+      echo "It will be available as: worktry $total" >&2
+      exit 1
+    fi
+    
+    echo "$path"
   fi
-  
-  # Get worktree at index (1-based from linked worktrees, which start at line 2)
-  local path=$(git worktree list 2>/dev/null | sed -n "$((index + 1))p" | awk '{print $1}')
-  
-  if [ -z "$path" ]; then
-    echo "Error: No worktree at index $index" >&2
-    echo "" >&2
-    echo "Available worktrees:" >&2
+}
+
+# List worktrees or clones with index prefix
+list_indexed() {
+  if is_clone_mode; then
+    local i=0
+    while IFS= read -r clone; do
+      [[ -n "$clone" ]] && echo "$i  $clone" && ((i++))
+    done < <(list_clones)
+  else
     local i=0
     git worktree list 2>/dev/null | while IFS= read -r line; do
-      echo "$i  $line" >&2
+      echo "$i  $line"
       ((i++))
     done
-    echo "" >&2
-    local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
-    echo "wt setup feature -c    # Create worktree with setup" >&2
-    echo "It will be available as: worktry $total" >&2
+  fi
+}
+
+# Apply worktry setup to an existing clone directory
+setup_clone() {
+  local target_dir="$1"
+  
+  if [ -z "$target_dir" ]; then
+    echo "Error: Directory argument required." >&2
+    echo "Usage: worktry setup <directory>" >&2
     exit 1
   fi
   
-  echo "$path"
-}
-
-# List worktrees with index prefix
-list_indexed() {
-  local i=0
-  git worktree list 2>/dev/null | while IFS= read -r line; do
-    echo "$i  $line"
-    ((i++))
-  done
-}
-
-# Edit .worktreekeep file
-edit_worktreekeep() {
-  local keepfile=".worktreekeep"
+  # Resolve to absolute path
+  if [[ ! "$target_dir" = /* ]]; then
+    target_dir="$(pwd)/$target_dir"
+  fi
   
-  # Create file if it doesn't exist
-  if [ ! -f "$keepfile" ]; then
-    cat > "$keepfile" << 'KEEP_EOF'
-# Files/directories to copy to new worktrees
-# (one path per line, relative to repo root)
-#
-# Examples:
-# .env
-# local.properties
-# .idea/
-# keystore.properties
-KEEP_EOF
-    echo "Created $keepfile"
+  if [ ! -d "$target_dir" ]; then
+    echo "Error: Directory '$target_dir' does not exist." >&2
+    exit 1
+  fi
+  
+  if [ ! -d "$target_dir/.git" ] && [ ! -f "$target_dir/.git" ]; then
+    echo "Error: '$target_dir' is not a git repository." >&2
+    exit 1
+  fi
+  
+  local source_dir=$(pwd)
+  
+  if [ ! -f "$source_dir/.worktree-setup.sh" ]; then
+    echo "Error: No .worktree-setup.sh in current directory." >&2
+    echo "Run 'worktry init' first." >&2
+    exit 1
+  fi
+  
+  echo "Applying worktry setup to $target_dir..."
+  (cd "$target_dir" && ROOT_WORKTREE_PATH="$source_dir" bash "$source_dir/.worktree-setup.sh")
+  echo "✓ Setup complete"
+}
+
+# Edit worktrees.json config file
+edit_config() {
+  local configfile="worktrees.json"
+  
+  if [ ! -f "$configfile" ]; then
+    echo "Error: $configfile not found." >&2
+    echo "Run 'worktry init' first." >&2
+    exit 1
   fi
 
-  # Check for editor
   local editor="${EDITOR:-${VISUAL:-}}"
   
   if [ -n "$editor" ]; then
-    $editor "$keepfile"
+    $editor "$configfile"
   else
     echo "No default text editor configured."
     echo ""
@@ -280,11 +363,7 @@ KEEP_EOF
     read -p "Open with VSCode instead? [y/N] " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-      echo ""
-      echo "Note: This assumes VSCode is installed and the 'code' command"
-      echo "      is available in your PATH."
-      echo ""
-      code "$keepfile"
+      code "$configfile"
     fi
   fi
 }
@@ -300,10 +379,13 @@ case "$1" in
     go_back
     ;;
   list|ls|l)
-    git worktree list
+    list_indexed
     ;;
-  keep|k)
-    edit_worktreekeep
+  config|c)
+    edit_config
+    ;;
+  setup|s)
+    setup_clone "$2"
     ;;
   new|n)
     shift
