@@ -16,10 +16,10 @@
 
 Work on multiple features in parallel — each in its own isolated worktree or clone, with Claude Code ready to go.
 
-**worktry** sets up your repo for parallel AI development:
+**wk** (or `worktry`) sets up your repo for parallel AI development:
 - 🤖 Auto-configures Claude Code permissions in each worktree/clone
 - 📁 Copies config files (`.env`, `.idea/`) to new worktrees/clones
-- 🚀 Jump between worktrees or clones instantly (`worktry 1`, `worktry 2`, etc.)
+- 🚀 Jump between worktrees or clones instantly (`wk 1`, `wk 2`, etc.)
 
 ## ⚡ Quick Start
 
@@ -27,17 +27,17 @@ Work on multiple features in parallel — each in its own isolated worktree or c
 # Install dependencies
 npm install -g @johnlindquist/worktree
 
-# Install worktry
+# Install wk
 git clone https://github.com/ovitrif/worktry.git
 cd worktry && ./install.sh
 
 # In your project
 cd your-project
-worktry init              # Setup worktrees.json
-worktry config            # Add files to copy-over list
+wk init                   # Setup worktrees.json
+wk config                 # Add files to copy-over list
 wt setup feature -c       # Create worktree with setup
-worktry 1                 # Jump to worktree
-worktry 0                 # Jump back to main
+wk 1                      # Jump to worktree
+wk 0                      # Jump back to main
 ```
 
 ## 📦 Installation
@@ -57,9 +57,8 @@ cd worktry
 ```
 
 This installs:
-- `worktry` script to `~/.local/bin/`
+- `wk` script to `~/.local/bin/` (with `worktry` alias)
 - Shell function to `~/.zshrc` (or `~/.bashrc`) for navigation
-- Warp workflow to `~/.warp/workflows/`
 
 ## 📖 Usage
 
@@ -67,7 +66,7 @@ This installs:
 
 ```bash
 cd your-project
-worktry init    # or: worktry i
+wk init    # or: wk i
 ```
 
 Creates:
@@ -77,7 +76,7 @@ Creates:
 ### 2. Configure Files To Copy
 
 ```bash
-worktry config    # or: worktry c
+wk config    # or: wk c
 ```
 
 Edit the `copy-over` array in `worktrees.json`:
@@ -110,32 +109,34 @@ If you prefer cloning over worktrees:
 
 ```bash
 gh repo clone user/repo repo-2    # Clone manually
-worktry setup ../repo-2           # Apply worktry setup to clone
+wk setup ../repo-2                # Apply wk setup to clone
 ```
 
 ### 5. Navigate
 
 ```bash
-worktry 0                 # Jump to main repo
-worktry 1                 # Jump to first worktree/clone
-worktry 2                 # Jump to second worktree/clone
-worktry go feature-name   # Jump by branch name (worktree mode)
-worktry back              # Jump back to main (alias: b)
+wk 0                      # Jump to main repo
+wk 1                      # Jump to first worktree/clone
+wk 2                      # Jump to second worktree/clone
+wk go feature-name        # Jump by branch name (worktree mode)
+wk back                   # Jump back to main (alias: b)
 ```
 
 ## 🛠️ Commands
 
 | Command | Alias | Description |
-|---------|-------|-------------|
-| `worktry init` | `i` | Initialize repo for worktry |
-| `worktry list` | `ls`, `l` | List worktrees or clones |
-| `worktry go <name>` | — | Navigate to worktree by branch name |
-| `worktry back` | `b` | Navigate back to main worktree |
-| `worktry config` | `c` | Edit worktrees.json config |
-| `worktry setup <dir>` | `s` | Apply worktry setup to a clone |
-| `worktry new <name> [-b BASE]` | `n` | Create worktree with setup |
-| `worktry 0-9` | — | Navigate to worktree/clone by index |
-| `worktry --help` | `-h` | Show help |
+|---------|-------|--------------|
+| `wk init` | `i` | Initialize repo for wk |
+| `wk list` | `ls`, `l` | List worktrees or clones |
+| `wk go <name>` | — | Navigate to worktree by branch name |
+| `wk back` | `b` | Navigate back to main worktree |
+| `wk config` | `c` | Edit worktrees.json config |
+| `wk setup <dir>` | `s` | Apply wk setup to a clone |
+| `wk new <name> [-b BASE]` | `n` | Create worktree with setup |
+| `wk 0-9` | — | Navigate to worktree/clone by index |
+| `wk --help` | `-h` | Show help |
+
+> **Note:** `worktry` is also available as an alias for `wk`.
 
 ## 📁 Files
 

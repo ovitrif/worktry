@@ -4,9 +4,9 @@ This document provides context and rules for AI agents contributing to worktry.
 
 ## Project Overview
 
-**worktry** helps you run multiple AI agents in parallel using git worktrees or repo clones. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
+**wk** (or `worktry`) helps you run multiple AI agents in parallel using git worktrees or repo clones. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
 
-- Quick navigation between worktrees or clones (`worktry 0`, `worktry 1`, etc.)
+- Quick navigation between worktrees or clones (`wk 0`, `wk 1`, etc.)
 - Automatic copying of config files (`.env`, `.idea/`, etc.) via `copy-over` in `worktrees.json`
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Support for both worktree mode and clone mode
@@ -15,10 +15,8 @@ This document provides context and rules for AI agents contributing to worktry.
 
 ```
 worktry/
-├── src/worktry          # Main bash script (all commands)
+├── src/wk               # Main bash script (all commands)
 ├── install.sh           # Installation script
-├── workflows/
-│   └── worktry.yaml     # Warp workflow definition
 ├── README.md            # User documentation
 ├── LICENSE              # The Unlicense
 └── AGENTS.md            # This file (AI agent rules)
@@ -26,7 +24,7 @@ worktry/
 
 ## Key Files
 
-### `src/worktry`
+### `src/wk`
 
 Main bash script containing:
 - `show_help()` — Help message with all commands
@@ -37,15 +35,14 @@ Main bash script containing:
 - `go_to_index()` — Navigate by numeric index (0-9), supports clone mode
 - `is_clone_mode()` — Detect if using clones vs worktrees
 - `list_clones()` — Find sibling clone directories
-- `setup_clone()` — Apply worktry setup to existing clone
+- `setup_clone()` — Apply wk setup to existing clone
 - `edit_config()` — Open `worktrees.json` in editor
 - Case statement routing all commands and aliases
 
 ### `install.sh`
 
 Installs:
-- Script to `~/.local/bin/worktry`
-- Workflow to `~/.warp/workflows/worktry.yaml`
+- Script to `~/.local/bin/wk` (with `worktry` symlink)
 - Shell function to `~/.zshrc` or `~/.bashrc` (for `cd` support on navigation commands)
 
 ## Coding Rules
@@ -87,7 +84,7 @@ Use concise, imperative mood:
 
 ## Testing Changes
 
-After modifying `src/worktry`:
+After modifying `src/wk`:
 
 ```bash
 # Reinstall
@@ -97,8 +94,8 @@ After modifying `src/worktry`:
 source ~/.zshrc
 
 # Test commands
-worktry --help
-worktry list
+wk --help
+wk list
 ```
 
 ## License

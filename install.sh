@@ -3,34 +3,32 @@
 set -e
 
 INSTALL_BIN="$HOME/.local/bin"
-INSTALL_WORKFLOWS="$HOME/.warp/workflows"
 
-# Ensure directories exist
+# Ensure directory exists
 mkdir -p "$INSTALL_BIN"
-mkdir -p "$INSTALL_WORKFLOWS"
 
 # Install script
-echo "Installing worktry to $INSTALL_BIN..."
-cp src/worktry "$INSTALL_BIN/worktry"
-chmod +x "$INSTALL_BIN/worktry"
+echo "Installing wk to $INSTALL_BIN..."
+cp src/wk "$INSTALL_BIN/wk"
+chmod +x "$INSTALL_BIN/wk"
 
-# Install workflow
-echo "Installing workflow to $INSTALL_WORKFLOWS..."
-cp workflows/worktry.yaml "$INSTALL_WORKFLOWS/worktry.yaml"
+# Create worktry symlink
+ln -sf "$INSTALL_BIN/wk" "$INSTALL_BIN/worktry"
 
-# Shell function for cd support (go/back/numeric commands)
-SHELL_FUNC='# worktry - cd wrapper for navigation commands
-worktry() {
+# Shell function
+SHELL_FUNC='# wk (worktry) - cd wrapper for navigation commands
+wk() {
   if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]$ ]]; then
     local target
-    target=$(command worktry "$@")
+    target=$(command wk "$@")
     if [[ -d "$target" ]]; then
       cd "$target" && echo "→ $target"
     fi
   else
-    command worktry "$@"
+    command wk "$@"
   fi
-}'
+}
+alias worktry=wk'
 
 # Detect shell rc file
 if [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "/bin/zsh" ]; then
@@ -43,23 +41,24 @@ fi
 
 # Add shell function if not already present
 if [ -n "$RC_FILE" ]; then
-  if ! grep -q "worktry()" "$RC_FILE" 2>/dev/null; then
+  # Check for wk() or old worktry() function
+  if grep -qE "^(wk|worktry)\(\)" "$RC_FILE" 2>/dev/null || grep -q "# wk (worktry)" "$RC_FILE" 2>/dev/null; then
+    echo "✓ Shell function already exists in $RC_FILE"
+  else
     echo ""
-    echo "Navigation commands (worktry go/back/0-9) require a shell function."
+    echo "Navigation commands (wk go/back/0-9) require a shell function."
     read -p "Add shell function to $RC_FILE? [Y/n] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
       echo "" >> "$RC_FILE"
       echo "$SHELL_FUNC" >> "$RC_FILE"
-      echo "✓ Added worktry function to $RC_FILE"
+      echo "✓ Added wk function to $RC_FILE"
       echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
     else
       echo "Skipped. To add manually, append to $RC_FILE:"
       echo ""
       echo "$SHELL_FUNC"
     fi
-  else
-    echo "✓ Shell function already exists in $RC_FILE"
   fi
 else
   echo ""
@@ -69,7 +68,6 @@ else
 fi
 
 echo ""
-echo "✓ worktry installed to $INSTALL_BIN"
-echo "✓ Warp workflow installed to $INSTALL_WORKFLOWS"
+echo "✓ wk installed to $INSTALL_BIN (with 'worktry' alias)"
 echo ""
 echo "Make sure '$INSTALL_BIN' is in your PATH."

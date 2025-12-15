@@ -13,27 +13,29 @@ show_help() {
  ╚════════════════════════════════════════════════════════╝
 
 USAGE:
-worktry <command> [options]
-worktry <0-9>                   Quick navigation by index
+wk <command> [options]
+wk <0-9>                        Quick navigation by index
 
 COMMANDS:
-init, i                   Initialize repo for worktry
+init, i                   Initialize repo for wk
 list, ls, l               List worktrees or clones
 go <name>                 Navigate to worktree by branch name
 back, b                   Navigate back to main worktree
 config, c                 Edit worktrees.json config
-setup <dir>               Apply worktry setup to a clone
+setup <dir>               Apply wk setup to a clone
 new <name> [-b BASE]      Create worktree with setup
 -h, --help                Show this help
 
 NAVIGATION:
-worktry 0                 Jump to main repo
-worktry 1                 Jump to first worktree/clone
-worktry 2-9               Jump to 2nd-9th worktree/clone
+wk 0                      Jump to main repo
+wk 1                      Jump to first worktree/clone
+wk 2-9                    Jump to 2nd-9th worktree/clone
 
 FILES:
 worktrees.json            Config for wt setup + copy-over list
 .worktree-setup.sh        Setup script (Claude permissions, file copying)
+
+ALIAS: worktry
 
 See: https://github.com/ovitrif/worktry
 EOF
@@ -112,7 +114,7 @@ EOF
   echo "✓ Created worktrees.json and .worktree-setup.sh"
   echo ""
   echo "Next steps:"
-  echo "  1. worktry config               # Add files to copy-over list"
+  echo "  1. wk config                    # Add files to copy-over list"
   echo "  2. wt setup <branch-name> -c    # Create worktree with setup"
 }
 
@@ -132,7 +134,7 @@ create_worktree() {
           name="$1"
         else
           echo "Error: Unknown argument '$1'" >&2
-          echo "Usage: worktry new <NAME> [--base|-b BASE_BRANCH]" >&2
+          echo "Usage: wk new <NAME> [--base|-b BASE_BRANCH]" >&2
           exit 1
         fi
         shift
@@ -142,7 +144,7 @@ create_worktree() {
 
   if [ -z "$name" ]; then
     echo "Error: Name argument is required."
-    echo "Usage: worktry new <NAME> [--base|-b BASE_BRANCH]"
+    echo "Usage: wk new <NAME> [--base|-b BASE_BRANCH]"
     exit 1
   fi
 
@@ -164,7 +166,7 @@ go_to_worktree() {
   local name="$1"
   if [ -z "$name" ]; then
     echo "Error: Branch name required." >&2
-    echo "Usage: worktry go <branch-name>" >&2
+    echo "Usage: wk go <branch-name>" >&2
     exit 1
   fi
 
@@ -278,7 +280,7 @@ go_to_index() {
       echo "" >&2
       local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
       echo "wt setup feature -c    # Create worktree with setup" >&2
-      echo "It will be available as: worktry $total" >&2
+      echo "It will be available as: wk $total" >&2
       exit 1
     fi
     
@@ -308,7 +310,7 @@ setup_clone() {
   
   if [ -z "$target_dir" ]; then
     echo "Error: Directory argument required." >&2
-    echo "Usage: worktry setup <directory>" >&2
+    echo "Usage: wk setup <directory>" >&2
     exit 1
   fi
   
@@ -331,11 +333,11 @@ setup_clone() {
   
   if [ ! -f "$source_dir/.worktree-setup.sh" ]; then
     echo "Error: No .worktree-setup.sh in current directory." >&2
-    echo "Run 'worktry init' first." >&2
+    echo "Run 'wk init' first." >&2
     exit 1
   fi
   
-  echo "Applying worktry setup to $target_dir..."
+  echo "Applying wk setup to $target_dir..."
   (cd "$target_dir" && ROOT_WORKTREE_PATH="$source_dir" bash "$source_dir/.worktree-setup.sh")
   echo "✓ Setup complete"
 }
@@ -346,7 +348,7 @@ edit_config() {
   
   if [ ! -f "$configfile" ]; then
     echo "Error: $configfile not found." >&2
-    echo "Run 'worktry init' first." >&2
+    echo "Run 'wk init' first." >&2
     exit 1
   fi
 
