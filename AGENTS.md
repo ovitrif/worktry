@@ -7,9 +7,9 @@ This document provides context and rules for AI agents contributing to worktry.
 **wk** (or `worktry`) helps you run multiple AI agents in parallel using git worktrees or repo clones. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
 
 - Quick navigation between worktrees or clones (`wk 0`, `wk 1`, etc.)
-- Automatic copying of config files (`.env`, `.idea/`, etc.) via `copy-over` in `worktrees.json`
+- Automatic copying of config files (`.env`, `.idea/`, etc.) via `.worktreeinclude` (gitignore-style patterns)
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
-- Support for both worktree mode and clone mode
+- Support for both worktree mode (`wk init`) and clone mode (`wk init --clone`)
 
 ## Project Structure
 
@@ -28,7 +28,10 @@ worktry/
 
 Main bash script containing:
 - `show_help()` — Help message with all commands
-- `create_worktrees_json()` — Creates `worktrees.json` and `.worktree-setup.sh`
+- `create_worktreeinclude()` — Creates `.worktreeinclude` template
+- `create_setup_script()` — Creates `.worktree-setup.sh` with file copying logic
+- `init_worktree_mode()` — Initialize for worktree mode (creates `worktrees.json`)
+- `init_clone_mode()` — Initialize for clone mode (no `worktrees.json`)
 - `create_worktree()` — Direct worktree creation
 - `go_to_worktree()` — Navigate by branch name
 - `go_back()` — Navigate to main worktree
@@ -36,8 +39,14 @@ Main bash script containing:
 - `is_clone_mode()` — Detect if using clones vs worktrees
 - `list_clones()` — Find sibling clone directories
 - `setup_clone()` — Apply wk setup to existing clone
-- `edit_config()` — Open `worktrees.json` in editor
+- `edit_config()` — Open `.worktreeinclude` in editor
 - Case statement routing all commands and aliases
+
+### Generated Files
+
+- `.worktreeinclude` — Gitignore-style patterns for files to copy (must also be in `.gitignore`)
+- `.worktree-setup.sh` — Setup script run when creating worktrees/clones
+- `worktrees.json` — Hook for `wt setup` CLI (worktree mode only)
 
 ### `install.sh`
 

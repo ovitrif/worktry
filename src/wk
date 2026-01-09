@@ -17,11 +17,12 @@ wk <command> [options]
 wk <0-9>                        Quick navigation by index
 
 COMMANDS:
-init, i                   Initialize repo for wk
+init, i                   Initialize for worktree mode
+init --clone, i -c        Initialize for clone mode
 list, ls, l               List worktrees or clones
 go <name>                 Navigate to worktree by branch name
 back, b                   Navigate back to main worktree
-config, c                 Edit worktrees.json config
+config, c                 Edit .worktreeinclude config
 setup <dir>               Apply wk setup to a clone
 new <name> [-b BASE]      Create worktree with setup
 -h, --help                Show this help
@@ -32,8 +33,9 @@ wk 1                      Jump to first worktree/clone
 wk 2-9                    Jump to 2nd-9th worktree/clone
 
 FILES:
-worktrees.json            Config for wt setup + copy-over list
+.worktreeinclude          Patterns for files to copy (gitignore-style)
 .worktree-setup.sh        Setup script (Claude permissions, file copying)
+worktrees.json            Config for wt setup hook (worktree mode only)
 
 ALIAS: worktry
 
@@ -41,16 +43,36 @@ See: https://github.com/ovitrif/worktry
 EOF
 }
 
-create_worktrees_json() {
-  if [ -f "worktrees.json" ]; then
-    echo "Error: worktrees.json already exists in current directory."
-    echo "Remove it first or edit manually."
-    exit 1
-  fi
+# Create .worktreeinclude file with example patterns
+create_worktreeinclude() {
+  cat > .worktreeinclude << 'EOF'
+# Files to copy to new worktrees/clones
+# Uses gitignore-style patterns
+# Files must ALSO be in .gitignore to be copied
 
-  # Create setup script
+# Environment files
+.env
+.env.local
+.env.*
+
+# Claude local settings
+**/.claude/settings.local.json
+
+# IDE settings (uncomment as needed)
+# .idea/
+# .vscode/
+
+# Local properties (uncomment as needed)
+# local.properties
+# keystore.properties
+EOF
+}
+
+# Create .worktree-setup.sh script
+create_setup_script() {
   cat > .worktree-setup.sh << 'SETUP_EOF'
 #!/bin/bash
+# Worktry setup script - runs in new worktree/clone
 
 # Create Claude Code settings
 mkdir -p .claude
@@ -74,48 +96,124 @@ cat > .claude/settings.local.json << 'JSON_EOF'
       "Bash(rm -rf:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)"
-    ],
-    "additionalDirectories": [
-      "/Users/ovitrif/repos"
     ]
   }
 }
 JSON_EOF
 
-# Copy files from copy-over array in worktrees.json
-if [ -f "$ROOT_WORKTREE_PATH/worktrees.json" ]; then
-  # Parse copy-over array using simple grep/sed (no jq dependency)
-  copy_items=$(grep -A 100 '"copy-over"' "$ROOT_WORKTREE_PATH/worktrees.json" | \
-    grep -oE '"[^"]+"' | tr -d '"' | grep -v 'copy-over')
-  
-  for item in $copy_items; do
-    src="$ROOT_WORKTREE_PATH/$item"
-    if [ -e "$src" ]; then
-      mkdir -p "$(dirname "$item")"
-      cp -r "$src" "$item"
-      echo "  Copied: $item"
-    fi
-  done
-fi
+# Copy files matching BOTH .worktreeinclude AND .gitignore
+copy_worktree_files() {
+  local source_dir="$1"
+  local include_file="$source_dir/.worktreeinclude"
+
+  [ ! -f "$include_file" ] && return 0
+
+  # Get all ignored files in source directory
+  local ignored_files
+  ignored_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-standard 2>/dev/null)
+
+  [ -z "$ignored_files" ] && return 0
+
+  # Read patterns from .worktreeinclude
+  while IFS= read -r pattern || [ -n "$pattern" ]; do
+    # Skip comments and empty lines
+    [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${pattern// }" ]] && continue
+    pattern=$(echo "$pattern" | xargs)  # Trim whitespace
+
+    # Match pattern against ignored files
+    echo "$ignored_files" | while read -r file; do
+      [ -z "$file" ] && continue
+
+      # Pattern matching: handle glob patterns
+      local matched=false
+
+      # Direct match
+      if [[ "$file" == $pattern ]]; then
+        matched=true
+      # Directory pattern (pattern/)
+      elif [[ "$pattern" == */ ]] && [[ "$file" == ${pattern}* ]]; then
+        matched=true
+      # Wildcard pattern (*.ext, .env.*)
+      elif [[ "$file" == $pattern ]]; then
+        matched=true
+      # Double-star pattern (**/file)
+      elif [[ "$pattern" == \*\*/* ]]; then
+        local suffix="${pattern#\*\*/}"
+        if [[ "$file" == *"$suffix" ]] || [[ "$file" == "$suffix" ]]; then
+          matched=true
+        fi
+      fi
+
+      if [ "$matched" = true ]; then
+        local src="$source_dir/$file"
+        if [ -e "$src" ]; then
+          mkdir -p "$(dirname "$file")"
+          cp -r "$src" "$file"
+          echo "  Copied: $file"
+        fi
+      fi
+    done
+  done < "$include_file"
+}
+
+copy_worktree_files "$ROOT_WORKTREE_PATH"
 SETUP_EOF
   chmod +x .worktree-setup.sh
+}
 
-  # Create worktrees.json with copy-over array
+# Initialize for worktree mode
+init_worktree_mode() {
+  if [ -f ".worktreeinclude" ]; then
+    echo "Error: .worktreeinclude already exists."
+    echo "Remove it first or edit manually."
+    exit 1
+  fi
+
+  create_worktreeinclude
+  create_setup_script
+
+  # Create worktrees.json for wt CLI integration
   cat > worktrees.json << 'EOF'
 {
   "setup-worktree": [
     "bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"
-  ],
-  "copy-over": [
   ]
 }
 EOF
 
-  echo "✓ Created worktrees.json and .worktree-setup.sh"
+  echo "Created:"
+  echo "  .worktreeinclude      # Add patterns for files to copy"
+  echo "  .worktree-setup.sh    # Setup script"
+  echo "  worktrees.json        # wt CLI integration"
   echo ""
   echo "Next steps:"
-  echo "  1. wk config                    # Add files to copy-over list"
-  echo "  2. wt setup <branch-name> -c    # Create worktree with setup"
+  echo "  1. Edit .worktreeinclude with files to copy"
+  echo "  2. wt setup <branch> -c    # Create worktree with setup"
+}
+
+# Initialize for clone mode
+init_clone_mode() {
+  if [ -f ".worktreeinclude" ]; then
+    echo "Error: .worktreeinclude already exists."
+    echo "Remove it first or edit manually."
+    exit 1
+  fi
+
+  create_worktreeinclude
+  create_setup_script
+
+  # No worktrees.json in clone mode
+
+  echo "Clone mode initialized!"
+  echo ""
+  echo "Created:"
+  echo "  .worktreeinclude      # Add patterns for files to copy"
+  echo "  .worktree-setup.sh    # Setup script"
+  echo ""
+  echo "Usage:"
+  echo "  gh repo clone user/repo repo-2    # Clone"
+  echo "  wk setup ../repo-2                # Apply setup"
 }
 
 create_worktree() {
@@ -342,10 +440,10 @@ setup_clone() {
   echo "✓ Setup complete"
 }
 
-# Edit worktrees.json config file
+# Edit .worktreeinclude config file
 edit_config() {
-  local configfile="worktrees.json"
-  
+  local configfile=".worktreeinclude"
+
   if [ ! -f "$configfile" ]; then
     echo "Error: $configfile not found." >&2
     echo "Run 'wk init' first." >&2
@@ -353,7 +451,7 @@ edit_config() {
   fi
 
   local editor="${EDITOR:-${VISUAL:-}}"
-  
+
   if [ -n "$editor" ]; then
     $editor "$configfile"
   else
@@ -372,7 +470,20 @@ edit_config() {
 
 case "$1" in
   init|i)
-    create_worktrees_json
+    shift
+    case "$1" in
+      --clone|-c)
+        init_clone_mode
+        ;;
+      "")
+        init_worktree_mode
+        ;;
+      *)
+        echo "Error: Unknown option '$1'" >&2
+        echo "Usage: wk init [--clone]" >&2
+        exit 1
+        ;;
+    esac
     ;;
   go)
     go_to_worktree "$2"

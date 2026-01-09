@@ -35,13 +35,18 @@ npm install -g @johnlindquist/worktree
 git clone https://github.com/ovitrif/worktry.git
 cd worktry && ./install.sh
 
-# In your project
+# In your project (worktree mode)
 cd your-project
-wk init                   # Setup worktrees.json
-wk config                 # Add files to copy-over list
+wk init                   # Setup .worktreeinclude
+wk config                 # Edit files to copy
 wt setup feature -c       # Create worktree with setup
 wk 1                      # Jump to worktree
 wk 0                      # Jump back to main
+
+# Or for clone mode
+wk init --clone           # Setup for clones
+gh repo clone user/repo repo-2
+wk setup ../repo-2        # Apply setup to clone
 ```
 
 ## 📦 Installation
@@ -70,12 +75,18 @@ This installs:
 
 ```bash
 cd your-project
-wk init    # or: wk i
+wk init           # Worktree mode (default)
+wk init --clone   # Clone mode
 ```
 
-Creates:
-- `worktrees.json` — Config for `wt setup` + `copy-over` list
+**Worktree mode** creates:
+- `.worktreeinclude` — Patterns for files to copy (gitignore-style)
 - `.worktree-setup.sh` — Setup script (Claude permissions + file copying)
+- `worktrees.json` — Hook for `wt setup` CLI
+
+**Clone mode** creates:
+- `.worktreeinclude` — Patterns for files to copy
+- `.worktree-setup.sh` — Setup script
 
 ### 2. Configure Files To Copy
 
@@ -83,18 +94,20 @@ Creates:
 wk config    # or: wk c
 ```
 
-Edit the `copy-over` array in `worktrees.json`:
+Edit `.worktreeinclude` with gitignore-style patterns:
 
-```json
-{
-  "setup-worktree": ["bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"],
-  "copy-over": [
-    ".env",
-    "local.properties",
-    ".idea/"
-  ]
-}
 ```
+# Files to copy to new worktrees/clones
+# Files must ALSO be in .gitignore to be copied
+
+.env
+.env.local
+.env.*
+.idea/
+**/.claude/settings.local.json
+```
+
+**Note:** Only files matching BOTH `.worktreeinclude` AND `.gitignore` are copied. This prevents accidentally duplicating tracked files.
 
 ### 3. Create Worktrees
 
@@ -130,11 +143,12 @@ wk back                   # Jump back to main (alias: b)
 
 | Command | Alias | Description |
 |---------|-------|--------------|
-| `wk init` | `i` | Initialize repo for wk |
+| `wk init` | `i` | Initialize for worktree mode |
+| `wk init --clone` | `i -c` | Initialize for clone mode |
 | `wk list` | `ls`, `l` | List worktrees or clones |
 | `wk go <name>` | — | Navigate to worktree by branch name |
 | `wk back` | `b` | Navigate back to main worktree |
-| `wk config` | `c` | Edit worktrees.json config |
+| `wk config` | `c` | Edit .worktreeinclude config |
 | `wk setup <dir>` | `s` | Apply wk setup to a clone |
 | `wk new <name> [-b BASE]` | `n` | Create worktree with setup |
 | `wk 0-9` | — | Navigate to worktree/clone by index |
@@ -146,8 +160,9 @@ wk back                   # Jump back to main (alias: b)
 
 | File | Description |
 |------|-------------|
-| `worktrees.json` | Config for `wt setup` + `copy-over` list |
+| `.worktreeinclude` | Patterns for files to copy (gitignore-style) |
 | `.worktree-setup.sh` | Setup script (Claude permissions, file copying) |
+| `worktrees.json` | Hook for `wt setup` CLI (worktree mode only) |
 
 ## 🤝 Contributing
 
