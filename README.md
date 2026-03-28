@@ -1,6 +1,6 @@
 # Worktry (wk CLI)
 
-Manage parallel Claude Code sessions with git worktrees or clones.
+Run parallel Claude Code sessions using git worktrees or clones.
 
 ```
 ██╗     ██╗                   ██╗   ██████████╗
@@ -14,46 +14,41 @@ Manage parallel Claude Code sessions with git worktrees or clones.
  ╚════════════════════════════════════════════════════════╝
 ```
 
-## 🤔 Why?
+## Why?
 
-Claude Code has built-in worktree support (`claude -w`), but **wk** adds what's missing:
+Claude Code can create worktrees with `claude -w`, but it won't help you jump between them, copy config files, or work with clones. That's what `wk` does.
 
-- 🚀 Jump between worktrees or clones instantly (`wk 1`, `wk 2`, etc.)
-- 📁 Copy config files (`.env`, `.idea/`) to new worktrees/clones via `.worktreeinclude`
-- 🔀 Clone mode for repos that don't work well with worktrees
-- 🤖 Auto-configures Claude Code permissions in each worktree/clone
+- Jump between worktrees or clones by index (`wk 1`, `wk 2`, etc.)
+- Copy `.env`, `.idea/`, and other config files to new worktrees via `.worktreeinclude`
+- Clone mode for repos where worktrees don't work well
+- Set up Claude Code permissions in each worktree/clone
 
-Worktrees are created at `.claude/worktrees/<name>` — the same location Claude Code uses.
+Worktrees go in `.claude/worktrees/<name>` -- same place Claude Code puts them.
 
-## ⚡ Quick Start
+## Quick start
 
 ```bash
-# Install wk
+# Install
 git clone https://github.com/ovitrif/worktry.git
 cd worktry && ./install.sh
 
-# In your project (worktree mode)
+# In your project
 cd your-project
-wk init                   # Setup .worktreeinclude
-wk config                 # Edit files to copy
-wk new feature            # Create worktree with setup
-wk 1                      # Jump to worktree
-wk 0                      # Jump back to main
+wk init                   # creates .worktreeinclude
+wk config                 # edit which files get copied
+wk new feature            # create worktree
+wk 1                      # jump to it
+wk 0                      # jump back
 
-# Or for clone mode
-wk init --clone           # Setup for clones
+# Clone mode
+wk init --clone
 gh repo clone user/repo repo-2
-wk setup ../repo-2        # Apply setup to clone
+wk setup ../repo-2
 ```
 
-## 📦 Installation
+## Install
 
-### Prerequisites
-
-- **git**
-- `~/.local/bin` in your PATH
-
-### Install
+You need `git` and `~/.local/bin` in your PATH.
 
 ```bash
 git clone https://github.com/ovitrif/worktry.git
@@ -61,27 +56,21 @@ cd worktry
 ./install.sh
 ```
 
-This installs:
-- `wk` script to `~/.local/bin/` (with `worktry` alias)
-- Shell function to `~/.zshrc` (or `~/.bashrc`) for navigation
+This puts `wk` in `~/.local/bin/` (with a `worktry` alias) and adds a shell function to your `.zshrc` or `.bashrc` for navigation.
 
-## 📖 Usage
+## Usage
 
-### 1. Initialize A Repo
+### Initialize a repo
 
 ```bash
 cd your-project
-wk init           # Worktree mode (default)
-wk init --clone   # Clone mode
+wk init           # worktree mode (default)
+wk init --clone   # clone mode
 ```
 
-**Worktree mode** creates:
-- `.worktreeinclude` — Patterns for files to copy (gitignore-style)
-- `.worktree-setup.sh` — Setup script (Claude permissions + file copying)
+Both create `.worktreeinclude` (patterns for files to copy) and `.worktree-setup.sh` (setup script that runs in new worktrees/clones).
 
-**Clone mode** creates the same files, without worktree-specific hooks.
-
-### 2. Configure Files To Copy
+### Configure files to copy
 
 ```bash
 wk config    # or: wk c
@@ -90,9 +79,7 @@ wk config    # or: wk c
 Edit `.worktreeinclude` with gitignore-style patterns:
 
 ```
-# Files to copy to new worktrees/clones
 # Files must ALSO be in .gitignore to be copied
-
 .env
 .env.local
 .env.*
@@ -100,75 +87,64 @@ Edit `.worktreeinclude` with gitignore-style patterns:
 **/.claude/settings.local.json
 ```
 
-**Note:** Only files matching BOTH `.worktreeinclude` AND `.gitignore` are copied. This prevents accidentally duplicating tracked files.
+Only files matching both `.worktreeinclude` and `.gitignore` get copied, so you won't accidentally duplicate tracked files.
 
-### 3. Create Worktrees
-
-```bash
-wk new feature-name              # From current HEAD
-wk new feature-name -b develop   # From specific branch
-```
-
-Creates a worktree at `.claude/worktrees/feature-name` with:
-- New branch `feature-name`
-- `.claude/settings.local.json` with Claude Code permissions
-- Copies of files matching `.worktreeinclude`
-
-### 4. Setup Existing Clones
-
-If you prefer cloning over worktrees:
+### Create worktrees
 
 ```bash
-gh repo clone user/repo repo-2    # Clone manually
-wk setup ../repo-2                # Apply wk setup to clone
+wk new feature-name              # from current HEAD
+wk new feature-name -b develop   # from a specific branch
 ```
 
-### 5. Navigate
+This creates a worktree at `.claude/worktrees/feature-name` with a new branch, Claude Code permissions, and copies of your config files.
+
+### Set up existing clones
+
+If you'd rather clone than use worktrees:
 
 ```bash
-wk 0                      # Jump to main repo
-wk 1                      # Jump to first worktree/clone
-wk 2                      # Jump to second worktree/clone
-wk go feature-name        # Jump by branch name (worktree mode)
-wk back                   # Jump back to main (alias: b)
+gh repo clone user/repo repo-2
+wk setup ../repo-2
 ```
 
-## 🛠️ Commands
+### Navigate
+
+```bash
+wk 0                      # main repo
+wk 1                      # first worktree/clone
+wk 2                      # second worktree/clone
+wk go feature-name        # by branch name
+wk back                   # back to main (alias: b)
+```
+
+## Commands
 
 | Command | Alias | Description |
-|---------|-------|--------------|
+|---------|-------|-------------|
 | `wk init` | `i` | Initialize for worktree mode |
 | `wk init --clone` | `i -c` | Initialize for clone mode |
 | `wk list` | `ls`, `l` | List worktrees or clones |
-| `wk go <name>` | — | Navigate to worktree by branch name |
-| `wk back` | `b` | Navigate back to main worktree |
-| `wk config` | `c` | Edit .worktreeinclude config |
-| `wk setup <dir>` | `s` | Apply wk setup to a clone |
+| `wk go <name>` | -- | Go to worktree by branch name |
+| `wk back` | `b` | Back to main worktree |
+| `wk config` | `c` | Edit .worktreeinclude |
+| `wk setup <dir>` | `s` | Apply setup to a clone |
 | `wk new <name> [-b BASE]` | `n` | Create worktree with setup |
-| `wk 0-9` | — | Navigate to worktree/clone by index |
+| `wk 0-9` | -- | Go to worktree/clone by index |
 | `wk --help` | `-h` | Show help |
 
-> **Note:** `worktry` is also available as an alias for `wk`.
+`worktry` works as an alias for `wk`.
 
-## 📁 Files
+## Files
 
-| File | Description |
+| File | What it does |
 |------|-------------|
-| `.worktreeinclude` | Patterns for files to copy (gitignore-style) |
-| `.worktree-setup.sh` | Setup script (Claude permissions, file copying) |
+| `.worktreeinclude` | Gitignore-style patterns for files to copy |
+| `.worktree-setup.sh` | Runs on new worktrees/clones (permissions + file copying) |
 
-## 🤝 Contributing
+## Contributing
 
-Contributions welcome! Feel free to:
+PRs welcome. See [AGENTS.md](AGENTS.md) for coding rules.
 
-1. Fork the repo
-2. Create a feature branch
-3. Submit a PR
+## License
 
-See [AGENTS.md](AGENTS.md) for project context and coding rules.
-
-## 📄 License
-
-[The Unlicense](https://unlicense.org) — Public domain. Do whatever you want.
-
-See [LICENSE](LICENSE).
+[The Unlicense](https://unlicense.org) -- public domain.
