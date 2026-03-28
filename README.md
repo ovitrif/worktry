@@ -14,8 +14,6 @@ Manage parallel Claude Code sessions with git worktrees or clones.
  ╚════════════════════════════════════════════════════════╝
 ```
 
-![worktry screenshot](doc/screenshot.png)
-
 ## 🤔 Why?
 
 Claude Code has built-in worktree support (`claude -w`), but **wk** adds what's missing:
