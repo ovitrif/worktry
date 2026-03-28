@@ -372,17 +372,37 @@ go_to_index() {
   fi
 }
 
-# List worktrees or clones with index prefix and type
+# List worktrees or clones with index prefix, type, and current marker
 list_indexed() {
+  local current_dir
+  current_dir=$(pwd -P)
+
   if is_clone_mode; then
     local i=0
     while IFS= read -r clone; do
-      [[ -n "$clone" ]] && echo "$i  $clone  [clone]" && ((i++))
+      if [[ -n "$clone" ]]; then
+        local resolved
+        resolved=$(cd "$clone" 2>/dev/null && pwd -P)
+        if [[ "$resolved" == "$current_dir" ]]; then
+          echo "$i  $clone  [clone] *"
+        else
+          echo "$i  $clone  [clone]"
+        fi
+        ((i++))
+      fi
     done < <(list_clones)
   else
     local i=0
     git worktree list 2>/dev/null | while IFS= read -r line; do
-      echo "$i  $line  [worktree]"
+      local wt_path
+      wt_path=$(echo "$line" | awk '{print $1}')
+      local resolved
+      resolved=$(cd "$wt_path" 2>/dev/null && pwd -P)
+      if [[ "$resolved" == "$current_dir" ]]; then
+        echo "$i  $line  [worktree] *"
+      else
+        echo "$i  $line  [worktree]"
+      fi
       ((i++))
     done
   fi

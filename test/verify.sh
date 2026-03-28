@@ -37,6 +37,7 @@ echo "=== wk ls ==="
 LS_OUTPUT=$(wk ls)
 echo "$LS_OUTPUT"
 echo "$LS_OUTPUT" | grep -q "\[worktree\]" || fail "wk ls missing [worktree] type label"
+echo "$LS_OUTPUT" | grep -q "\*" || fail "wk ls missing * marker for current worktree"
 
 echo ""
 echo "=== wk 1 ==="
