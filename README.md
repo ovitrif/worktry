@@ -1,6 +1,6 @@
 # Worktry (wk CLI)
 
-Vibe code in parallel using git worktrees or clones.
+Manage parallel Claude Code sessions with git worktrees or clones.
 
 ```
 ██╗     ██╗                   ██╗   ██████████╗
@@ -18,19 +18,18 @@ Vibe code in parallel using git worktrees or clones.
 
 ## 🤔 Why?
 
-Work on multiple features in parallel — each in its own isolated worktree or clone, with Claude Code ready to go.
+Claude Code has built-in worktree support (`claude -w`), but **wk** adds what's missing:
 
-**wk** (or `worktry`) sets up your repo for parallel AI development:
-- 🤖 Auto-configures Claude Code permissions in each worktree/clone
-- 📁 Copies config files (`.env`, `.idea/`) to new worktrees/clones
 - 🚀 Jump between worktrees or clones instantly (`wk 1`, `wk 2`, etc.)
+- 📁 Copy config files (`.env`, `.idea/`) to new worktrees/clones via `.worktreeinclude`
+- 🔀 Clone mode for repos that don't work well with worktrees
+- 🤖 Auto-configures Claude Code permissions in each worktree/clone
+
+Worktrees are created at `.claude/worktrees/<name>` — the same location Claude Code uses.
 
 ## ⚡ Quick Start
 
 ```bash
-# Install dependencies
-npm install -g @johnlindquist/worktree
-
 # Install wk
 git clone https://github.com/ovitrif/worktry.git
 cd worktry && ./install.sh
@@ -39,7 +38,7 @@ cd worktry && ./install.sh
 cd your-project
 wk init                   # Setup .worktreeinclude
 wk config                 # Edit files to copy
-wt setup feature -c       # Create worktree with setup
+wk new feature            # Create worktree with setup
 wk 1                      # Jump to worktree
 wk 0                      # Jump back to main
 
@@ -53,8 +52,7 @@ wk setup ../repo-2        # Apply setup to clone
 
 ### Prerequisites
 
-- **Node.js** (v18+) — [nodejs.org](https://nodejs.org)
-- **worktree-cli** — `npm install -g @johnlindquist/worktree`
+- **git**
 - `~/.local/bin` in your PATH
 
 ### Install
@@ -82,11 +80,8 @@ wk init --clone   # Clone mode
 **Worktree mode** creates:
 - `.worktreeinclude` — Patterns for files to copy (gitignore-style)
 - `.worktree-setup.sh` — Setup script (Claude permissions + file copying)
-- `worktrees.json` — Hook for `wt setup` CLI
 
-**Clone mode** creates:
-- `.worktreeinclude` — Patterns for files to copy
-- `.worktree-setup.sh` — Setup script
+**Clone mode** creates the same files, without worktree-specific hooks.
 
 ### 2. Configure Files To Copy
 
@@ -112,13 +107,14 @@ Edit `.worktreeinclude` with gitignore-style patterns:
 ### 3. Create Worktrees
 
 ```bash
-wt setup feature-name -c
+wk new feature-name              # From current HEAD
+wk new feature-name -b develop   # From specific branch
 ```
 
-Creates a worktree with:
+Creates a worktree at `.claude/worktrees/feature-name` with:
 - New branch `feature-name`
-- `.claude/settings.local.json` with permissions
-- Copies of files from `copy-over` list
+- `.claude/settings.local.json` with Claude Code permissions
+- Copies of files matching `.worktreeinclude`
 
 ### 4. Setup Existing Clones
 
@@ -162,7 +158,6 @@ wk back                   # Jump back to main (alias: b)
 |------|-------------|
 | `.worktreeinclude` | Patterns for files to copy (gitignore-style) |
 | `.worktree-setup.sh` | Setup script (Claude permissions, file copying) |
-| `worktrees.json` | Hook for `wt setup` CLI (worktree mode only) |
 
 ## 🤝 Contributing
 
@@ -172,9 +167,7 @@ Contributions welcome! Feel free to:
 2. Create a feature branch
 3. Submit a PR
 
-### AI Agents
-
-This project supports vibe-coding with AI agents. See [AGENTS.md](AGENTS.md) for project context and coding rules.
+See [AGENTS.md](AGENTS.md) for project context and coding rules.
 
 ## 📄 License
 

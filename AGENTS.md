@@ -4,12 +4,14 @@ This document provides context and rules for AI agents contributing to worktry.
 
 ## Project Overview
 
-**wk** (or `worktry`) helps you run multiple AI agents in parallel using git worktrees or repo clones. Built as a companion to [worktree-cli](https://github.com/johnlindquist/worktree-cli) (`wt`), it provides:
+**wk** (or `worktry`) is a Claude Code companion CLI for managing parallel workspaces using git worktrees or repo clones. It provides:
 
 - Quick navigation between worktrees or clones (`wk 0`, `wk 1`, etc.)
 - Automatic copying of config files (`.env`, `.idea/`, etc.) via `.worktreeinclude` (gitignore-style patterns)
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Support for both worktree mode (`wk init`) and clone mode (`wk init --clone`)
+
+Worktrees are created at `.claude/worktrees/<name>` — the same location Claude Code uses with `claude -w`.
 
 ## Project Structure
 
@@ -17,6 +19,7 @@ This document provides context and rules for AI agents contributing to worktry.
 worktry/
 ├── src/wk               # Main bash script (all commands)
 ├── install.sh           # Installation script
+├── test/verify.sh       # End-to-end verification script
 ├── README.md            # User documentation
 ├── LICENSE              # The Unlicense
 └── AGENTS.md            # This file (AI agent rules)
@@ -30,9 +33,9 @@ Main bash script containing:
 - `show_help()` — Help message with all commands
 - `create_worktreeinclude()` — Creates `.worktreeinclude` template
 - `create_setup_script()` — Creates `.worktree-setup.sh` with file copying logic
-- `init_worktree_mode()` — Initialize for worktree mode (creates `worktrees.json`)
-- `init_clone_mode()` — Initialize for clone mode (no `worktrees.json`)
-- `create_worktree()` — Direct worktree creation
+- `init_worktree_mode()` — Initialize for worktree mode
+- `init_clone_mode()` — Initialize for clone mode
+- `create_worktree()` — Create worktree at `.claude/worktrees/<name>`
 - `go_to_worktree()` — Navigate by branch name
 - `go_back()` — Navigate to main worktree
 - `go_to_index()` — Navigate by numeric index (0-9), supports clone mode
@@ -46,7 +49,6 @@ Main bash script containing:
 
 - `.worktreeinclude` — Gitignore-style patterns for files to copy (must also be in `.gitignore`)
 - `.worktree-setup.sh` — Setup script run when creating worktrees/clones
-- `worktrees.json` — Hook for `wt setup` CLI (worktree mode only)
 
 ### `install.sh`
 
@@ -76,6 +78,14 @@ When adding new commands:
 5. Update README.md Commands table
 6. Update AGENTS.md Key Files section if adding new functions
 
+### Testing and Verification
+
+After any changes to `src/wk` or `install.sh`:
+1. Reinstall: `./install.sh && source ~/.zshrc`
+2. Run `test/verify.sh` to exercise every command against a tmp repo
+3. If any checks fail, fix and re-run until all pass
+4. Update `test/verify.sh` if new commands or behaviors are added
+
 ### Commit Messages
 
 Use concise, imperative mood:
@@ -102,9 +112,8 @@ After modifying `src/wk`:
 # Source shell config (for navigation commands)
 source ~/.zshrc
 
-# Test commands
-wk --help
-wk list
+# Run verification
+bash test/verify.sh
 ```
 
 ## License
