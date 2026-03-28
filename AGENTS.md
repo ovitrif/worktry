@@ -96,8 +96,7 @@ Use concise, imperative mood:
 
 ### Documentation
 
-- Keep README.md scannable with emojis in section headers
-- Use title case for headings (capitalize each word)
+- Use sentence case for headings (capitalize only first word)
 - Avoid filler phrases ("This is a tool that...", "What this does is...")
 - Be direct and concise
 
