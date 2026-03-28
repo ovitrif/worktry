@@ -1,7 +1,5 @@
 # AI Agents Guide
 
-This document provides context and rules for AI agents contributing to worktry.
-
 ## Project Overview
 
 **wk** (or `worktry`) is a Claude Code companion CLI for managing parallel workspaces using git worktrees or repo clones. It provides:
@@ -11,7 +9,7 @@ This document provides context and rules for AI agents contributing to worktry.
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Support for both worktree mode (`wk init`) and clone mode (`wk init --clone`)
 
-Worktrees are created at `.claude/worktrees/<name>` — the same location Claude Code uses with `claude -w`.
+Worktrees are created at `.claude/worktrees/<name>`, the same location Claude Code uses with `claude -w`.
 
 ## Project Structure
 
@@ -30,25 +28,25 @@ worktry/
 ### `src/wk`
 
 Main bash script containing:
-- `show_help()` — Help message with all commands
-- `create_worktreeinclude()` — Creates `.worktreeinclude` template
-- `create_setup_script()` — Creates `.worktree-setup.sh` with file copying logic
-- `init_worktree_mode()` — Initialize for worktree mode
-- `init_clone_mode()` — Initialize for clone mode
-- `create_worktree()` — Create worktree at `.claude/worktrees/<name>`
-- `go_to_worktree()` — Navigate by branch name
-- `go_back()` — Navigate to main worktree
-- `go_to_index()` — Navigate by numeric index (0-9), supports clone mode
-- `is_clone_mode()` — Detect if using clones vs worktrees
-- `list_clones()` — Find sibling clone directories
-- `setup_clone()` — Apply wk setup to existing clone
-- `edit_config()` — Open `.worktreeinclude` in editor
+- `show_help()` -- help message with all commands
+- `create_worktreeinclude()` -- creates `.worktreeinclude` template
+- `create_setup_script()` -- creates `.worktree-setup.sh` with file copying logic
+- `init_worktree_mode()` -- initialize for worktree mode
+- `init_clone_mode()` -- initialize for clone mode
+- `create_worktree()` -- create worktree at `.claude/worktrees/<name>`
+- `go_to_worktree()` -- navigate by branch name
+- `go_back()` -- navigate to main worktree
+- `go_to_index()` -- navigate by numeric index (0-9), supports clone mode
+- `is_clone_mode()` -- detect if using clones vs worktrees
+- `list_clones()` -- find sibling clone directories
+- `setup_clone()` -- apply wk setup to existing clone
+- `edit_config()` -- open `.worktreeinclude` in editor
 - Case statement routing all commands and aliases
 
-### Generated Files
+### Generated files
 
-- `.worktreeinclude` — Gitignore-style patterns for files to copy (must also be in `.gitignore`)
-- `.worktree-setup.sh` — Setup script run when creating worktrees/clones
+- `.worktreeinclude` -- gitignore-style patterns for files to copy (must also be in `.gitignore`)
+- `.worktree-setup.sh` -- setup script run when creating worktrees/clones
 
 ### `install.sh`
 

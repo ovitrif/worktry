@@ -16,9 +16,9 @@ Run parallel Claude Code sessions using git worktrees or clones.
 
 ## Why?
 
-Claude Code can create worktrees with `claude -w`, but it won't help you jump between them, copy config files, or work with clones. That's what `wk` does.
+`claude -w` creates worktrees. `wk` adds navigation between them, config file copying, and clone support.
 
-- Jump between worktrees or clones by index (`wk 1`, `wk 2`, etc.)
+- Jump between worktrees or clones by index (`wk 1`, `wk 2`)
 - Copy `.env`, `.idea/`, and other config files to new worktrees via `.worktreeinclude`
 - Clone mode for repos where worktrees don't work well
 - Set up Claude Code permissions in each worktree/clone
@@ -87,7 +87,7 @@ Edit `.worktreeinclude` with gitignore-style patterns:
 **/.claude/settings.local.json
 ```
 
-Only files matching both `.worktreeinclude` and `.gitignore` get copied, so you won't accidentally duplicate tracked files.
+Files must match both `.worktreeinclude` and `.gitignore` to be copied.
 
 ### Create worktrees
 
@@ -96,7 +96,7 @@ wk new feature-name              # from current HEAD
 wk new feature-name -b develop   # from a specific branch
 ```
 
-This creates a worktree at `.claude/worktrees/feature-name` with a new branch, Claude Code permissions, and copies of your config files.
+Creates a worktree at `.claude/worktrees/feature-name` with a new branch. Copies config files and sets up Claude Code permissions.
 
 ### Set up existing clones
 
