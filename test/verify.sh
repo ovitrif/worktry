@@ -34,7 +34,9 @@ test -d .claude/worktrees/test-feature || fail "worktree not at .claude/worktree
 
 echo ""
 echo "=== wk ls ==="
-wk ls || fail "wk ls failed"
+LS_OUTPUT=$(wk ls)
+echo "$LS_OUTPUT"
+echo "$LS_OUTPUT" | grep -q "\[worktree\]" || fail "wk ls missing [worktree] type label"
 
 echo ""
 echo "=== wk 1 ==="
@@ -66,6 +68,9 @@ git clone test-repo test-repo-2
 cd test-repo-2
 command wk init --clone
 test -f .worktreeinclude || fail "clone init missing .worktreeinclude"
+CLONE_LS=$(wk ls)
+echo "$CLONE_LS"
+echo "$CLONE_LS" | grep -q "\[clone\]" || fail "wk ls missing [clone] type label in clone mode"
 
 # Cleanup
 cd /

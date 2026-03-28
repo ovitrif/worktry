@@ -19,7 +19,7 @@ wk <0-9>                        Quick navigation by index
 COMMANDS:
 init, i                   Initialize for worktree mode
 init --clone, i -c        Initialize for clone mode
-list, ls, l               List worktrees or clones
+list, ls, l               List worktrees or clones (with type)
 go <name>                 Navigate to worktree by branch name
 back, b                   Navigate back to main worktree
 config, c                 Edit .worktreeinclude config
@@ -372,17 +372,17 @@ go_to_index() {
   fi
 }
 
-# List worktrees or clones with index prefix
+# List worktrees or clones with index prefix and type
 list_indexed() {
   if is_clone_mode; then
     local i=0
     while IFS= read -r clone; do
-      [[ -n "$clone" ]] && echo "$i  $clone" && ((i++))
+      [[ -n "$clone" ]] && echo "$i  $clone  [clone]" && ((i++))
     done < <(list_clones)
   else
     local i=0
     git worktree list 2>/dev/null | while IFS= read -r line; do
-      echo "$i  $line"
+      echo "$i  $line  [worktree]"
       ((i++))
     done
   fi

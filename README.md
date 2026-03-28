@@ -123,7 +123,7 @@ wk back                   # back to main (alias: b)
 |---------|-------|-------------|
 | `wk init` | `i` | Initialize for worktree mode |
 | `wk init --clone` | `i -c` | Initialize for clone mode |
-| `wk list` | `ls`, `l` | List worktrees or clones |
+| `wk list` | `ls`, `l` | List worktrees or clones (with type) |
 | `wk go <name>` | -- | Go to worktree by branch name |
 | `wk back` | `b` | Back to main worktree |
 | `wk config` | `c` | Edit .worktreeinclude |
