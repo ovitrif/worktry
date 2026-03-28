@@ -35,8 +35,6 @@ wk 2-9                    Jump to 2nd-9th worktree/clone
 FILES:
 .worktreeinclude          Patterns for files to copy (gitignore-style)
 .worktree-setup.sh        Setup script (Claude permissions, file copying)
-worktrees.json            Config for wt setup hook (worktree mode only)
-
 ALIAS: worktry
 
 See: https://github.com/ovitrif/worktry
@@ -58,8 +56,8 @@ create_worktreeinclude() {
 # Claude local settings
 **/.claude/settings.local.json
 
-# IDE settings (uncomment as needed)
-# .idea/
+# IDE settings
+.idea/
 # .vscode/
 
 # Local properties (uncomment as needed)
@@ -173,23 +171,13 @@ init_worktree_mode() {
   create_worktreeinclude
   create_setup_script
 
-  # Create worktrees.json for wt CLI integration
-  cat > worktrees.json << 'EOF'
-{
-  "setup-worktree": [
-    "bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"
-  ]
-}
-EOF
-
   echo "Created:"
   echo "  .worktreeinclude      # Add patterns for files to copy"
   echo "  .worktree-setup.sh    # Setup script"
-  echo "  worktrees.json        # wt CLI integration"
   echo ""
   echo "Next steps:"
   echo "  1. Edit .worktreeinclude with files to copy"
-  echo "  2. wt setup <branch> -c    # Create worktree with setup"
+  echo "  2. wk new <branch>         # Create worktree with setup"
 }
 
 # Initialize for clone mode
@@ -202,8 +190,6 @@ init_clone_mode() {
 
   create_worktreeinclude
   create_setup_script
-
-  # No worktrees.json in clone mode
 
   echo "Clone mode initialized!"
   echo ""
@@ -246,16 +232,16 @@ create_worktree() {
     exit 1
   fi
 
-  PROJECT_NAME=$(basename "$PWD")
-  TARGET_PATH="../${PROJECT_NAME}.${name}"
+  TARGET_PATH=".claude/worktrees/${name}"
 
   echo "Creating worktree '$name' at '$TARGET_PATH' from '$base_branch'..."
   git worktree add "$TARGET_PATH" -b "$name" "$base_branch"
-  
+
   # Run setup if .worktree-setup.sh exists
+  local source_dir="$PWD"
   if [ -f ".worktree-setup.sh" ]; then
     echo "Running setup..."
-    (cd "$TARGET_PATH" && ROOT_WORKTREE_PATH="$PWD/.." bash "$PWD/../.worktree-setup.sh")
+    (cd "$TARGET_PATH" && ROOT_WORKTREE_PATH="$source_dir" bash "$source_dir/.worktree-setup.sh")
   fi
 }
 
@@ -377,7 +363,7 @@ go_to_index() {
       done
       echo "" >&2
       local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
-      echo "wt setup feature -c    # Create worktree with setup" >&2
+      echo "wk new feature         # Create worktree with setup" >&2
       echo "It will be available as: wk $total" >&2
       exit 1
     fi

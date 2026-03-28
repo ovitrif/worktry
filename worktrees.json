@@ -1,5 +1,0 @@
-{
-  "setup-worktree": [
-    "bash $ROOT_WORKTREE_PATH/.worktree-setup.sh"
-  ]
-}
