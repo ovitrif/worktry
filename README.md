@@ -34,16 +34,13 @@ cd worktry && ./install.sh
 
 # In your project
 cd your-project
-wk init                   # creates .worktreeinclude
-wk config                 # edit which files get copied
-wk new feature            # create worktree
+wk new feature            # create worktree (auto-creates .worktreeinclude)
 wk 1                      # jump to it
 wk 0                      # jump back
 
-# Clone mode
-wk init --clone
-gh repo clone user/repo repo-2
-wk setup ../repo-2
+# Or clone instead
+wk clone                  # create sibling clone with setup
+wk clone -m ../existing   # apply setup to existing clone
 ```
 
 ## Install
@@ -60,23 +57,13 @@ This puts `wk` in `~/.local/bin/` (with a `worktry` alias) and adds a shell func
 
 ## Usage
 
-### Initialize a repo
-
-```bash
-cd your-project
-wk init           # worktree mode (default)
-wk init --clone   # clone mode
-```
-
-Both create `.worktreeinclude` (patterns for files to copy) and `.worktree-setup.sh` (setup script that runs in new worktrees/clones).
-
 ### Configure files to copy
 
 ```bash
 wk config    # or: wk c
 ```
 
-Edit `.worktreeinclude` with gitignore-style patterns:
+Edit `.worktreeinclude` with gitignore-style patterns (auto-created if missing):
 
 ```
 # Files must ALSO be in .gitignore to be copied
@@ -98,14 +85,15 @@ wk new feature-name -b develop   # from a specific branch
 
 Creates a worktree at `.claude/worktrees/feature-name` with a new branch. Copies config files and sets up Claude Code permissions.
 
-### Set up existing clones
-
-If you'd rather clone than use worktrees:
+### Create clones
 
 ```bash
-gh repo clone user/repo repo-2
-wk setup ../repo-2
+wk clone                  # auto-named sibling (repo-2, repo-3, etc.)
+wk clone my-feature       # named sibling clone
+wk clone -m ../repo-2     # apply setup to existing clone
 ```
+
+Clones from `origin` as a sibling directory with Claude Code permissions and config files copied over.
 
 ### Navigate
 
@@ -115,20 +103,20 @@ wk 1                      # first worktree/clone
 wk 2                      # second worktree/clone
 wk go feature-name        # by branch name
 wk back                   # back to main (alias: b)
+wk ls                     # list everything with indices
 ```
 
 ## Commands
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `wk init` | `i` | Initialize for worktree mode |
-| `wk init --clone` | `i -c` | Initialize for clone mode |
-| `wk list` | `ls`, `l` | List worktrees or clones (with type) |
+| `wk new <name> [-b BASE]` | `n` | Create worktree with setup |
+| `wk clone [name]` | `cl` | Clone repo as sibling with setup |
+| `wk clone -m <dir>` | -- | Apply setup to existing clone |
+| `wk list` | `ls`, `l` | List all worktrees and clones |
 | `wk go <name>` | -- | Go to worktree by branch name |
 | `wk back` | `b` | Back to main worktree |
 | `wk config` | `c` | Edit .worktreeinclude |
-| `wk setup <dir>` | `s` | Apply setup to a clone |
-| `wk new <name> [-b BASE]` | `n` | Create worktree with setup |
 | `wk 0-9` | -- | Go to worktree/clone by index |
 | `wk --help` | `-h` | Show help |
 
@@ -138,8 +126,7 @@ wk back                   # back to main (alias: b)
 
 | File | What it does |
 |------|-------------|
-| `.worktreeinclude` | Gitignore-style patterns for files to copy |
-| `.worktree-setup.sh` | Runs on new worktrees/clones (permissions + file copying) |
+| `.worktreeinclude` | Gitignore-style patterns for files to copy (auto-created) |
 
 ## Contributing
 
