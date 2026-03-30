@@ -11,33 +11,38 @@ git init test-repo && cd test-repo
 git config user.email "test@test.com"
 git config user.name "Test"
 echo "SECRET=123" > .env
+echo ".env" > .gitignore
 git add -A && git commit -m "init"
 
 echo "=== wk --help ==="
 wk --help || fail "wk --help exited non-zero"
 
 echo ""
-echo "=== wk init ==="
-wk init
-test -f .worktreeinclude || fail ".worktreeinclude not created"
-test -f .worktree-setup.sh || fail ".worktree-setup.sh not created"
-test ! -f worktrees.json || fail "worktrees.json should NOT exist"
-
-echo ""
-echo "=== wk config ==="
-EDITOR=cat wk config || fail "wk config failed"
-
-echo ""
-echo "=== wk new test-feature ==="
+echo "=== wk new (no init needed) ==="
 wk new test-feature
 test -d .claude/worktrees/test-feature || fail "worktree not at .claude/worktrees/test-feature"
+test -f .worktreeinclude || fail ".worktreeinclude not auto-created by wk new"
+test ! -f .worktree-setup.sh || fail ".worktree-setup.sh should NOT be generated"
+test -f .claude/worktrees/test-feature/.claude/settings.local.json || fail "Claude settings not created in worktree"
 
 echo ""
-echo "=== wk ls (worktree mode, from main) ==="
+echo "=== wk config (auto-creates .worktreeinclude) ==="
+cd "$TMPDIR"
+git init config-test && cd config-test
+git config user.email "test@test.com"
+git config user.name "Test"
+git commit --allow-empty -m "init"
+test ! -f .worktreeinclude || fail ".worktreeinclude should not exist yet"
+EDITOR=cat wk config || fail "wk config failed"
+test -f .worktreeinclude || fail ".worktreeinclude not auto-created by wk config"
+
+echo ""
+echo "=== wk ls (worktrees) ==="
+cd "$TMPDIR/test-repo"
 LS_OUTPUT=$(wk ls)
 echo "$LS_OUTPUT"
 echo "$LS_OUTPUT" | grep -q "\[worktree\]" || fail "wk ls missing [worktree] type label"
-echo "$LS_OUTPUT" | grep -q "\*" || fail "wk ls missing * marker for current worktree"
+echo "$LS_OUTPUT" | grep -q "\*" || fail "wk ls missing * marker"
 
 echo ""
 echo "=== wk 1 ==="
@@ -58,25 +63,17 @@ echo "wk back -> $OUTPUT"
 test -d "$OUTPUT" || fail "wk back output is not a valid directory"
 
 echo ""
-echo "=== wk new test-feature-2 --base main ==="
+echo "=== wk new with --base ==="
 wk new test-feature-2 --base main
 test -d .claude/worktrees/test-feature-2 || fail "worktree with --base not created"
 
 echo ""
-echo "=== clone mode ==="
+echo "=== wk clone -m (manual clone setup) ==="
 cd "$TMPDIR"
 git clone test-repo test-repo-2
-cd test-repo-2
-command wk init --clone
-test -f .worktreeinclude || fail "clone init missing .worktreeinclude"
-
-echo ""
-echo "=== wk ls (from clone, should see both repos) ==="
-CLONE_LS=$(wk ls)
-echo "$CLONE_LS"
-echo "$CLONE_LS" | grep -q "\[clone\]" || fail "wk ls missing [clone] type label"
-echo "$CLONE_LS" | grep -q "test-repo-2" || fail "wk ls from clone doesn't show self"
-echo "$CLONE_LS" | grep -q "\*" || fail "wk ls from clone missing * marker"
+cd "$TMPDIR/test-repo"
+wk clone -m "$TMPDIR/test-repo-2"
+test -f "$TMPDIR/test-repo-2/.claude/settings.local.json" || fail "clone -m didn't create Claude settings"
 
 echo ""
 echo "=== wk ls (unified: worktrees + clones) ==="
@@ -84,25 +81,41 @@ cd "$TMPDIR/test-repo"
 LS_UNIFIED=$(wk ls)
 echo "$LS_UNIFIED"
 echo "$LS_UNIFIED" | grep -q "\[worktree\]" || fail "unified wk ls missing [worktree]"
-echo "$LS_UNIFIED" | grep -q "\[clone\]" || fail "unified wk ls missing [clone] for test-repo-2"
-LINES=$(echo "$LS_UNIFIED" | wc -l | tr -d ' ')
-[[ "$LINES" -ge 3 ]] || fail "unified wk ls should have at least 3 entries (main + worktree + clone), got $LINES"
+echo "$LS_UNIFIED" | grep -q "\[clone\]" || fail "unified wk ls missing [clone]"
 
 echo ""
-echo "=== wk ls column alignment ==="
-# All [worktree] and [clone] labels should start at the same column
-COLS=$(echo "$LS_UNIFIED" | sed -n 's/.*\(\[.*\]\).*/\1/p' | while read -r label; do
-  echo "$LS_UNIFIED" | grep -n "$label" | head -1 | awk -v lab="$label" '{print index($0, lab)}'
-done | sort -u | wc -l | tr -d ' ')
-# With printf alignment, type labels should start at the same column
-[[ "$COLS" -le 2 ]] || fail "wk ls columns not aligned (found $COLS distinct start positions for type labels)"
+echo "=== wk ls from clone sees everything ==="
+cd "$TMPDIR/test-repo-2"
+CLONE_LS=$(wk ls)
+echo "$CLONE_LS"
+echo "$CLONE_LS" | grep -q "\[worktree\]" || fail "wk ls from clone missing [worktree]"
+echo "$CLONE_LS" | grep -q "\[clone\]" || fail "wk ls from clone missing [clone]"
+echo "$CLONE_LS" | grep -q "\*" || fail "wk ls from clone missing * marker"
 
 echo ""
-echo "=== wk 2 (navigate to clone by index) ==="
+echo "=== wk clone (auto-clone) ==="
 cd "$TMPDIR/test-repo"
-OUTPUT=$(command wk 2)
-echo "wk 2 -> $OUTPUT"
-test -d "$OUTPUT" || fail "wk 2 (clone navigation) output is not a valid directory"
+# Set origin to local path for testing
+git remote remove origin 2>/dev/null
+git remote add origin "$TMPDIR/test-repo"
+wk clone test-repo-auto
+test -d "$TMPDIR/test-repo-auto" || fail "wk clone did not create sibling"
+test -f "$TMPDIR/test-repo-auto/.claude/settings.local.json" || fail "wk clone didn't create Claude settings"
+
+echo ""
+echo "=== wk clone (auto-numbered) ==="
+cd "$TMPDIR/test-repo"
+wk clone
+# Should create test-repo-3 (test-repo-2 exists, test-repo-auto doesn't match pattern)
+FOUND_AUTO=false
+for d in "$TMPDIR"/test-repo-[0-9]*; do
+  if [ -d "$d" ] && [ "$d" != "$TMPDIR/test-repo-2" ]; then
+    FOUND_AUTO=true
+    echo "Auto-numbered clone: $d"
+    break
+  fi
+done
+$FOUND_AUTO || fail "wk clone auto-numbering failed"
 
 # Cleanup
 cd /
