@@ -17,12 +17,12 @@ wk <command> [options]
 wk <0-9>                        Quick navigation by index
 
 COMMANDS:
-new <name> [-b BASE]      Create worktree with setup
-clone [name]              Clone repo as sibling with setup
+new, n <name> [-b BASE]   Create worktree with setup
+clone, cl [name]          Clone repo as sibling with setup
 clone -m <dir>            Apply setup to existing clone
 list, ls, l               List all worktrees and clones
-go <name>                 Navigate to worktree by branch name
-back, b                   Navigate back to main worktree
+go <name>                 Go to worktree by branch name
+back, b                   Back to main worktree
 config, c                 Edit .worktreeinclude config
 -h, --help                Show this help
 
