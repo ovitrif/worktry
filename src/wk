@@ -17,14 +17,13 @@ wk <command> [options]
 wk <0-9>                        Quick navigation by index
 
 COMMANDS:
-init, i                   Initialize for worktree mode
-init --clone, i -c        Initialize for clone mode
-list, ls, l               List worktrees or clones (with type)
+new <name> [-b BASE]      Create worktree with setup
+clone [name]              Clone repo as sibling with setup
+clone -m <dir>            Apply setup to existing clone
+list, ls, l               List all worktrees and clones
 go <name>                 Navigate to worktree by branch name
 back, b                   Navigate back to main worktree
 config, c                 Edit .worktreeinclude config
-setup <dir>               Apply wk setup to a clone
-new <name> [-b BASE]      Create worktree with setup
 -h, --help                Show this help
 
 NAVIGATION:
@@ -34,7 +33,7 @@ wk 2-9                    Jump to 2nd-9th worktree/clone
 
 FILES:
 .worktreeinclude          Patterns for files to copy (gitignore-style)
-.worktree-setup.sh        Setup script (Claude permissions, file copying)
+
 ALIAS: worktry
 
 See: https://github.com/ovitrif/worktry
@@ -66,15 +65,75 @@ create_worktreeinclude() {
 EOF
 }
 
-# Create .worktree-setup.sh script
-create_setup_script() {
-  cat > .worktree-setup.sh << 'SETUP_EOF'
-#!/bin/bash
-# Worktry setup script - runs in new worktree/clone
+# Auto-create .worktreeinclude if missing
+ensure_worktreeinclude() {
+  if [ ! -f ".worktreeinclude" ]; then
+    create_worktreeinclude
+    echo "Created .worktreeinclude template"
+  fi
+}
 
-# Create Claude Code settings
-mkdir -p .claude
-cat > .claude/settings.local.json << 'JSON_EOF'
+# Copy files matching BOTH .worktreeinclude AND .gitignore
+copy_worktree_files() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local include_file="$source_dir/.worktreeinclude"
+
+  [ ! -f "$include_file" ] && return 0
+
+  # Get all ignored files in source directory
+  local ignored_files
+  ignored_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-standard 2>/dev/null)
+
+  [ -z "$ignored_files" ] && return 0
+
+  # Read patterns from .worktreeinclude
+  while IFS= read -r pattern || [ -n "$pattern" ]; do
+    # Skip comments and empty lines
+    [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${pattern// }" ]] && continue
+    pattern=$(echo "$pattern" | xargs)  # Trim whitespace
+
+    # Match pattern against ignored files
+    echo "$ignored_files" | while read -r file; do
+      [ -z "$file" ] && continue
+
+      local matched=false
+
+      # Direct match or wildcard
+      if [[ "$file" == $pattern ]]; then
+        matched=true
+      # Directory pattern (pattern/)
+      elif [[ "$pattern" == */ ]] && [[ "$file" == ${pattern}* ]]; then
+        matched=true
+      # Double-star pattern (**/file)
+      elif [[ "$pattern" == \*\*/* ]]; then
+        local suffix="${pattern#\*\*/}"
+        if [[ "$file" == *"$suffix" ]] || [[ "$file" == "$suffix" ]]; then
+          matched=true
+        fi
+      fi
+
+      if [ "$matched" = true ]; then
+        local src="$source_dir/$file"
+        if [ -e "$src" ]; then
+          mkdir -p "$target_dir/$(dirname "$file")"
+          cp -r "$src" "$target_dir/$file"
+          echo "  Copied: $file"
+        fi
+      fi
+    done
+  done < "$include_file"
+}
+
+# Run setup in target directory (Claude permissions + file copying)
+run_setup() {
+  local source_dir="$1"
+  local target_dir="$2"
+
+  # Create Claude Code settings
+  mkdir -p "$target_dir/.claude"
+  cat > "$target_dir/.claude/settings.local.json" << 'JSON_EOF'
 {
   "permissions": {
     "allow": [
@@ -99,113 +158,14 @@ cat > .claude/settings.local.json << 'JSON_EOF'
 }
 JSON_EOF
 
-# Copy files matching BOTH .worktreeinclude AND .gitignore
-copy_worktree_files() {
-  local source_dir="$1"
-  local include_file="$source_dir/.worktreeinclude"
-
-  [ ! -f "$include_file" ] && return 0
-
-  # Get all ignored files in source directory
-  local ignored_files
-  ignored_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-standard 2>/dev/null)
-
-  [ -z "$ignored_files" ] && return 0
-
-  # Read patterns from .worktreeinclude
-  while IFS= read -r pattern || [ -n "$pattern" ]; do
-    # Skip comments and empty lines
-    [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
-    [[ -z "${pattern// }" ]] && continue
-    pattern=$(echo "$pattern" | xargs)  # Trim whitespace
-
-    # Match pattern against ignored files
-    echo "$ignored_files" | while read -r file; do
-      [ -z "$file" ] && continue
-
-      # Pattern matching: handle glob patterns
-      local matched=false
-
-      # Direct match
-      if [[ "$file" == $pattern ]]; then
-        matched=true
-      # Directory pattern (pattern/)
-      elif [[ "$pattern" == */ ]] && [[ "$file" == ${pattern}* ]]; then
-        matched=true
-      # Wildcard pattern (*.ext, .env.*)
-      elif [[ "$file" == $pattern ]]; then
-        matched=true
-      # Double-star pattern (**/file)
-      elif [[ "$pattern" == \*\*/* ]]; then
-        local suffix="${pattern#\*\*/}"
-        if [[ "$file" == *"$suffix" ]] || [[ "$file" == "$suffix" ]]; then
-          matched=true
-        fi
-      fi
-
-      if [ "$matched" = true ]; then
-        local src="$source_dir/$file"
-        if [ -e "$src" ]; then
-          mkdir -p "$(dirname "$file")"
-          cp -r "$src" "$file"
-          echo "  Copied: $file"
-        fi
-      fi
-    done
-  done < "$include_file"
-}
-
-copy_worktree_files "$ROOT_WORKTREE_PATH"
-SETUP_EOF
-  chmod +x .worktree-setup.sh
-}
-
-# Initialize for worktree mode
-init_worktree_mode() {
-  if [ -f ".worktreeinclude" ]; then
-    echo "Error: .worktreeinclude already exists."
-    echo "Remove it first or edit manually."
-    exit 1
-  fi
-
-  create_worktreeinclude
-  create_setup_script
-
-  echo "Created:"
-  echo "  .worktreeinclude      # Add patterns for files to copy"
-  echo "  .worktree-setup.sh    # Setup script"
-  echo ""
-  echo "Next steps:"
-  echo "  1. Edit .worktreeinclude with files to copy"
-  echo "  2. wk new <branch>         # Create worktree with setup"
-}
-
-# Initialize for clone mode
-init_clone_mode() {
-  if [ -f ".worktreeinclude" ]; then
-    echo "Error: .worktreeinclude already exists."
-    echo "Remove it first or edit manually."
-    exit 1
-  fi
-
-  create_worktreeinclude
-  create_setup_script
-
-  echo "Clone mode initialized!"
-  echo ""
-  echo "Created:"
-  echo "  .worktreeinclude      # Add patterns for files to copy"
-  echo "  .worktree-setup.sh    # Setup script"
-  echo ""
-  echo "Usage:"
-  echo "  gh repo clone user/repo repo-2    # Clone"
-  echo "  wk setup ../repo-2                # Apply setup"
+  # Copy files matching .worktreeinclude
+  copy_worktree_files "$source_dir" "$target_dir"
 }
 
 create_worktree() {
   local name=""
   local base_branch="HEAD"
-  
+
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -232,17 +192,110 @@ create_worktree() {
     exit 1
   fi
 
+  ensure_worktreeinclude
+
+  local source_dir="$PWD"
   TARGET_PATH=".claude/worktrees/${name}"
 
   echo "Creating worktree '$name' at '$TARGET_PATH' from '$base_branch'..."
   git worktree add "$TARGET_PATH" -b "$name" "$base_branch"
 
-  # Run setup if .worktree-setup.sh exists
+  echo "Running setup..."
+  run_setup "$source_dir" "$source_dir/$TARGET_PATH"
+}
+
+# Clone repo as sibling with setup
+clone_repo() {
+  local name=""
+  local manual_dir=""
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --manual|-m)
+        manual_dir="$2"
+        shift 2
+        ;;
+      *)
+        if [ -z "$name" ]; then
+          name="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
   local source_dir="$PWD"
-  if [ -f ".worktree-setup.sh" ]; then
-    echo "Running setup..."
-    (cd "$TARGET_PATH" && ROOT_WORKTREE_PATH="$source_dir" bash "$source_dir/.worktree-setup.sh")
+
+  # Manual mode: apply setup to existing clone
+  if [ -n "$manual_dir" ]; then
+    # Resolve to absolute path
+    if [[ ! "$manual_dir" = /* ]]; then
+      manual_dir="$source_dir/$manual_dir"
+    fi
+
+    if [ ! -d "$manual_dir" ]; then
+      echo "Error: Directory '$manual_dir' does not exist." >&2
+      exit 1
+    fi
+
+    if [ ! -d "$manual_dir/.git" ] && [ ! -f "$manual_dir/.git" ]; then
+      echo "Error: '$manual_dir' is not a git repository." >&2
+      exit 1
+    fi
+
+    ensure_worktreeinclude
+
+    echo "Applying setup to $manual_dir..."
+    run_setup "$source_dir" "$manual_dir"
+    echo "Done"
+    return
   fi
+
+  # Clone mode: create new sibling clone
+  local remote_url
+  remote_url=$(git remote get-url origin 2>/dev/null)
+
+  if [ -z "$remote_url" ]; then
+    echo "Error: No remote 'origin' found." >&2
+    exit 1
+  fi
+
+  # Auto-name if no name given
+  if [ -z "$name" ]; then
+    local base_name
+    base_name=$(basename "$source_dir")
+    # Strip existing numeric suffix to get the base
+    base_name=$(echo "$base_name" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
+    local parent_dir
+    parent_dir=$(dirname "$source_dir")
+    local i=2
+    while [ -d "$parent_dir/${base_name}-${i}" ]; do
+      ((i++))
+    done
+    name="${base_name}-${i}"
+  fi
+
+  local target_path="../$name"
+
+  if [ -d "$target_path" ]; then
+    echo "Error: Directory '$target_path' already exists." >&2
+    exit 1
+  fi
+
+  ensure_worktreeinclude
+
+  echo "Cloning to '$target_path'..."
+  if ! git clone "$remote_url" "$target_path"; then
+    echo "Error: Clone failed." >&2
+    exit 1
+  fi
+
+  echo "Running setup..."
+  local abs_target
+  abs_target=$(cd "$target_path" && pwd)
+  run_setup "$source_dir" "$abs_target"
+  echo "Done"
 }
 
 # Navigate to a worktree by branch name
@@ -271,8 +324,6 @@ go_to_worktree() {
 
 # Navigate back to main worktree
 go_back() {
-  # Main worktree is the one without "branch" being a linked worktree
-  # It's typically the first one listed, or we find the one that's not bare
   local main_path=$(git worktree list --porcelain 2>/dev/null | awk '
     /^worktree / { wt = substr($0, 10) }
     /^bare$/ { next }
@@ -395,54 +446,11 @@ list_indexed() {
   done
 }
 
-# Apply worktry setup to an existing clone directory
-setup_clone() {
-  local target_dir="$1"
-  
-  if [ -z "$target_dir" ]; then
-    echo "Error: Directory argument required." >&2
-    echo "Usage: wk setup <directory>" >&2
-    exit 1
-  fi
-  
-  # Resolve to absolute path
-  if [[ ! "$target_dir" = /* ]]; then
-    target_dir="$(pwd)/$target_dir"
-  fi
-  
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory '$target_dir' does not exist." >&2
-    exit 1
-  fi
-  
-  if [ ! -d "$target_dir/.git" ] && [ ! -f "$target_dir/.git" ]; then
-    echo "Error: '$target_dir' is not a git repository." >&2
-    exit 1
-  fi
-  
-  local source_dir=$(pwd)
-  
-  if [ ! -f "$source_dir/.worktree-setup.sh" ]; then
-    echo "Error: No .worktree-setup.sh in current directory." >&2
-    echo "Run 'wk init' first." >&2
-    exit 1
-  fi
-  
-  echo "Applying wk setup to $target_dir..."
-  (cd "$target_dir" && ROOT_WORKTREE_PATH="$source_dir" bash "$source_dir/.worktree-setup.sh")
-  echo "✓ Setup complete"
-}
-
 # Edit .worktreeinclude config file
 edit_config() {
+  ensure_worktreeinclude
+
   local configfile=".worktreeinclude"
-
-  if [ ! -f "$configfile" ]; then
-    echo "Error: $configfile not found." >&2
-    echo "Run 'wk init' first." >&2
-    exit 1
-  fi
-
   local editor="${EDITOR:-${VISUAL:-}}"
 
   if [ -n "$editor" ]; then
@@ -462,22 +470,6 @@ edit_config() {
 }
 
 case "$1" in
-  init|i)
-    shift
-    case "$1" in
-      --clone|-c)
-        init_clone_mode
-        ;;
-      "")
-        init_worktree_mode
-        ;;
-      *)
-        echo "Error: Unknown option '$1'" >&2
-        echo "Usage: wk init [--clone]" >&2
-        exit 1
-        ;;
-    esac
-    ;;
   go)
     go_to_worktree "$2"
     ;;
@@ -490,8 +482,9 @@ case "$1" in
   config|c)
     edit_config
     ;;
-  setup|s)
-    setup_clone "$2"
+  clone|cl)
+    shift
+    clone_repo "$@"
     ;;
   new|n)
     shift
