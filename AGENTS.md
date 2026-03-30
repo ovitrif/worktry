@@ -36,9 +36,8 @@ Main bash script containing:
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>`
 - `go_to_worktree()` -- navigate by branch name
 - `go_back()` -- navigate to main worktree
-- `go_to_index()` -- navigate by numeric index (0-9), supports clone mode
-- `is_clone_mode()` -- detect if using clones vs worktrees
-- `list_clones()` -- find sibling clone directories
+- `collect_entries()` -- find all worktrees and sibling clones (unified, deduplicated)
+- `go_to_index()` -- navigate by numeric index (0-9)
 - `setup_clone()` -- apply wk setup to existing clone
 - `edit_config()` -- open `.worktreeinclude` in editor
 - Case statement routing all commands and aliases

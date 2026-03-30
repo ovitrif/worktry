@@ -292,120 +292,107 @@ go_back() {
   echo "$main_path"
 }
 
-# Check if in clone mode (no linked worktrees, but sibling clones exist)
-is_clone_mode() {
-  local wt_count=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
-  # Clone mode if only 1 worktree (main) exists
-  [[ "$wt_count" -le 1 ]]
-}
+# Collect all entries (worktrees + sibling clones, deduplicated)
+# Output: path|type lines
+collect_entries() {
+  local main_path
+  main_path=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+  [ -z "$main_path" ] && main_path=$(pwd)
 
-# List sibling clone directories (same repo name prefix)
-list_clones() {
-  local current_dir=$(pwd)
-  local parent_dir=$(dirname "$current_dir")
-  local base_name=$(basename "$current_dir")
-  
-  # Remove any suffix like -2, -3, .feature to get base name
-  base_name=$(echo "$base_name" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
-  
-  # Find all directories matching base_name* that are git repos, sorted
-  local clones=()
+  local parent_dir base_name
+  parent_dir=$(dirname "$main_path")
+  base_name=$(basename "$main_path" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
+
+  # Find all sibling repos sharing the base name
+  local siblings=()
   while IFS= read -r dir; do
     if [[ -d "$dir/.git" || -f "$dir/.git" ]]; then
-      clones+=("$dir")
+      siblings+=("$dir")
     fi
   done < <(find "$parent_dir" -maxdepth 1 -type d -name "${base_name}*" 2>/dev/null | sort)
-  
-  printf '%s\n' "${clones[@]}"
+
+  # Fallback: no siblings found, list current repo's worktrees
+  if [[ ${#siblings[@]} -eq 0 ]]; then
+    git worktree list 2>/dev/null | while IFS= read -r line; do
+      echo "$(echo "$line" | awk '{print $1}')|worktree"
+    done
+    return
+  fi
+
+  # For each sibling, list its worktrees or mark as clone
+  for dir in "${siblings[@]}"; do
+    local wt_count
+    wt_count=$(git -C "$dir" worktree list 2>/dev/null | wc -l | tr -d ' ')
+
+    if [[ "$wt_count" -gt 1 ]]; then
+      git -C "$dir" worktree list 2>/dev/null | while IFS= read -r wt_line; do
+        echo "$(echo "$wt_line" | awk '{print $1}')|worktree"
+      done
+    else
+      if [[ ${#siblings[@]} -gt 1 ]]; then
+        echo "$dir|clone"
+      else
+        echo "$dir|worktree"
+      fi
+    fi
+  done | awk -F'|' '!seen[$1]++'
 }
 
-# Navigate to worktree/clone by index (0 = main, 1-9 = others)
+# Navigate to worktree/clone by index (0 = first, 1-9 = others)
 go_to_index() {
   local index="$1"
-  
-  if is_clone_mode; then
-    # Clone mode: navigate by clone index
-    local clones=()
-    while IFS= read -r line; do
-      [[ -n "$line" ]] && clones+=("$line")
-    done < <(list_clones)
-    
-    if [[ $index -ge ${#clones[@]} ]]; then
-      echo "Error: No clone at index $index" >&2
-      echo "" >&2
-      echo "Available clones:" >&2
-      local i=0
-      for clone in "${clones[@]}"; do
-        echo "$i  $clone" >&2
-        ((i++))
-      done
-      exit 1
-    fi
-    
-    echo "${clones[$index]}"
-  else
-    # Worktree mode
-    if [ "$index" = "0" ]; then
-      go_back
-      return
-    fi
-    
-    local path=$(git worktree list 2>/dev/null | sed -n "$((index + 1))p" | awk '{print $1}')
-    
-    if [ -z "$path" ]; then
-      echo "Error: No worktree at index $index" >&2
-      echo "" >&2
-      echo "Available worktrees:" >&2
-      local i=0
-      git worktree list 2>/dev/null | while IFS= read -r line; do
-        echo "$i  $line" >&2
-        ((i++))
-      done
-      echo "" >&2
-      local total=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
-      echo "wk new feature         # Create worktree with setup" >&2
-      echo "It will be available as: wk $total" >&2
-      exit 1
-    fi
-    
-    echo "$path"
+
+  local entries=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && entries+=("${line%|*}")
+  done < <(collect_entries)
+
+  if [[ $index -ge ${#entries[@]} ]]; then
+    echo "Error: No entry at index $index" >&2
+    echo "" >&2
+    echo "Available:" >&2
+    list_indexed >&2
+    exit 1
   fi
+
+  echo "${entries[$index]}"
 }
 
-# List worktrees or clones with index prefix, type, and current marker
+# List all worktrees and clones with aligned columns
 list_indexed() {
   local current_dir
   current_dir=$(pwd -P)
 
-  if is_clone_mode; then
-    local i=0
-    while IFS= read -r clone; do
-      if [[ -n "$clone" ]]; then
-        local resolved
-        resolved=$(cd "$clone" 2>/dev/null && pwd -P)
-        if [[ "$resolved" == "$current_dir" ]]; then
-          echo "$i  $clone  [clone] *"
-        else
-          echo "$i  $clone  [clone]"
-        fi
-        ((i++))
-      fi
-    done < <(list_clones)
-  else
-    local i=0
-    git worktree list 2>/dev/null | while IFS= read -r line; do
-      local wt_path
-      wt_path=$(echo "$line" | awk '{print $1}')
-      local resolved
-      resolved=$(cd "$wt_path" 2>/dev/null && pwd -P)
-      if [[ "$resolved" == "$current_dir" ]]; then
-        echo "$i  $line  [worktree] *"
-      else
-        echo "$i  $line  [worktree]"
-      fi
-      ((i++))
-    done
-  fi
+  local paths=() types=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    paths+=("${line%|*}")
+    types+=("${line##*|}")
+  done < <(collect_entries)
+
+  # Find max path length for column alignment
+  local max_len=0
+  for p in "${paths[@]}"; do
+    [[ ${#p} -gt $max_len ]] && max_len=${#p}
+  done
+
+  # Find max type length for alignment
+  local max_type=0
+  for t in "${types[@]}"; do
+    local label="[$t]"
+    [[ ${#label} -gt $max_type ]] && max_type=${#label}
+  done
+
+  for i in "${!paths[@]}"; do
+    local path="${paths[$i]}"
+    local type="${types[$i]}"
+    local label="[$type]"
+    local resolved
+    resolved=$(cd "$path" 2>/dev/null && pwd -P)
+    local marker=""
+    [[ "$resolved" == "$current_dir" ]] && marker=" *"
+    printf "%d  %-${max_len}s  %-${max_type}s%s\n" "$i" "$path" "$label" "$marker"
+  done
 }
 
 # Apply worktry setup to an existing clone directory
