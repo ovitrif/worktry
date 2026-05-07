@@ -8,8 +8,9 @@
 - Automatic copying of config files (`.env`, `.idea/`, etc.) via `.worktreeinclude` (gitignore-style patterns)
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Worktree and clone creation with one command (`wk new`, `wk clone`)
+- Source directory, source branch, target branch, and interactive prompts for creation commands
 
-Worktrees are created at `.claude/worktrees/<name>`, the same location Claude Code uses with `claude -w`.
+Worktrees are created at `.claude/worktrees/<name>` under the selected repo directory, the same location Claude Code uses with `claude -w`.
 
 ## Project structure
 
@@ -31,6 +32,10 @@ Main bash script containing:
 - `show_help()` -- help message with all commands
 - `create_worktreeinclude()` -- creates `.worktreeinclude` template
 - `ensure_worktreeinclude()` -- auto-creates `.worktreeinclude` if missing
+- `resolve_repo_dir()` -- resolves `--dir` or the current directory to the git repository root
+- `get_default_branch()` -- determines the repo default branch for creation commands
+- `prompt_value()` -- reads interactive values with defaults
+- `auto_clone_name()` -- picks the next sibling clone name
 - `copy_worktree_files()` -- copies files matching `.worktreeinclude` and `.gitignore`
 - `run_setup()` -- creates Claude Code permissions and copies config files
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup

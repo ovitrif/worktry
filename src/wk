@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="0.2.1"
+
 show_help() {
   cat << EOF
 ██╗     ██╗                   ██╗   ██████████╗
@@ -17,14 +19,28 @@ wk <command> [options]
 wk <0-9>                        Quick navigation by index
 
 COMMANDS:
-new, n <name> [-b BASE]   Create worktree with setup
-clone, cl [name]          Clone repo as sibling with setup
-clone -m <dir>            Apply setup to existing clone
-list, ls, l               List all worktrees and clones
-go <name>                 Go to worktree by branch name
-back, b                   Back to main worktree
-config, c                 Edit .worktreeinclude config
--h, --help                Show this help
+new, n <name> [options]         Create worktree with setup
+clone, c [name] [options]       Clone repo as sibling with setup
+clone -m <dir>                  Apply setup to existing clone
+list, ls, l                     List all worktrees and clones
+go <name>                       Go to worktree by branch name
+back, b                         Back to main worktree
+config                          Edit .worktreeinclude config
+-h, --help                      Show this help
+-v, --version                   Show version
+
+NEW OPTIONS:
+-d, --dir <dir>                 Repo dir to create from (default: current repo)
+-s, --src <branch>              Source branch (default: repo default branch)
+-b, --branch <branch>           Branch to create or check out (default: <name>)
+-i, --interactive               Prompt for new options
+
+CLONE OPTIONS:
+-d, --dir <dir>                 Repo dir to clone from (default: current repo)
+-s, --src <branch>              Source branch (default: repo default branch)
+-b, --branch <branch>           Branch to create or check out (default: --src)
+-m, --manual <dir>              Apply setup to existing clone
+-i, --interactive               Prompt for clone options
 
 NAVIGATION:
 wk 0                      Jump to main repo
@@ -36,13 +52,17 @@ FILES:
 
 ALIAS: worktry
 
+VERSION: $VERSION
+
 See: https://github.com/ovitrif/worktry
 EOF
 }
 
 # Create .worktreeinclude file with example patterns
 create_worktreeinclude() {
-  cat > .worktreeinclude << 'EOF'
+  local dir="${1:-.}"
+
+  cat > "$dir/.worktreeinclude" << 'EOF'
 # Files to copy to new worktrees/clones
 # Uses gitignore-style patterns
 # Files must ALSO be in .gitignore to be copied
@@ -67,10 +87,120 @@ EOF
 
 # Auto-create .worktreeinclude if missing
 ensure_worktreeinclude() {
-  if [ ! -f ".worktreeinclude" ]; then
-    create_worktreeinclude
+  local dir="${1:-.}"
+
+  if [ ! -f "$dir/.worktreeinclude" ]; then
+    create_worktreeinclude "$dir"
     echo "Created .worktreeinclude template"
   fi
+}
+
+resolve_repo_dir() {
+  local dir="${1:-$PWD}"
+  local repo_root
+
+  if [[ "$dir" != /* ]]; then
+    dir="$PWD/$dir"
+  fi
+
+  repo_root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)
+  if [ -z "$repo_root" ]; then
+    echo "Error: '$dir' is not inside a git repository." >&2
+    exit 1
+  fi
+
+  cd "$repo_root" && pwd
+}
+
+get_default_branch() {
+  local repo_dir="$1"
+  local branch=""
+
+  branch=$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  if [ -n "$branch" ]; then
+    echo "${branch#origin/}"
+    return
+  fi
+
+  branch=$(git -C "$repo_dir" remote show origin -n 2>/dev/null | awk -F': ' '/HEAD branch/ {print $2; exit}')
+  if [ -n "$branch" ] && [ "$branch" != "(unknown)" ] && [ "$branch" != "(not queried)" ]; then
+    echo "$branch"
+    return
+  fi
+
+  branch=$(git -C "$repo_dir" config --get init.defaultBranch 2>/dev/null)
+  if [ -n "$branch" ] && git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch"; then
+    echo "$branch"
+    return
+  fi
+
+  if git -C "$repo_dir" show-ref --verify --quiet refs/heads/main; then
+    echo "main"
+    return
+  fi
+
+  if git -C "$repo_dir" show-ref --verify --quiet refs/heads/master; then
+    echo "master"
+    return
+  fi
+
+  branch=$(git -C "$repo_dir" symbolic-ref --quiet --short HEAD 2>/dev/null)
+  if [ -n "$branch" ]; then
+    echo "$branch"
+  else
+    echo "HEAD"
+  fi
+}
+
+prompt_value() {
+  local label="$1"
+  local default_value="$2"
+  local reply=""
+  local bash_bin=""
+
+  if [ -t 0 ]; then
+    for bash_bin in "$BASH" "$(command -v bash 2>/dev/null)" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+      [ -x "$bash_bin" ] || continue
+      if "$bash_bin" -c 'help read 2>/dev/null | grep -q -- "-i "'; then
+        reply=$("$bash_bin" -c 'read -e -i "$1" -p "$2" reply; printf "%s" "$reply"' _ "$default_value" "$label")
+        echo "$reply"
+        return
+      fi
+    done
+  fi
+
+  if [ -t 0 ]; then
+    if help read 2>/dev/null | grep -q -- "-i "; then
+      read -e -i "$default_value" -p "$label" reply
+    elif [ -n "$default_value" ]; then
+      read -e -p "$label[$default_value] " reply
+      [ -z "$reply" ] && reply="$default_value"
+    else
+      read -e -p "$label" reply
+    fi
+  else
+    read -r reply
+    [ -z "$reply" ] && reply="$default_value"
+  fi
+
+  echo "$reply"
+}
+
+auto_clone_name() {
+  local source_dir="$1"
+  local base_name
+  local parent_dir
+  local i=2
+
+  base_name=$(basename "$source_dir")
+  base_name=$(echo "$base_name" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
+  parent_dir=$(dirname "$source_dir")
+
+  while [ -d "$parent_dir/${base_name}-${i}" ]; do
+    ((i++))
+  done
+
+  echo "${base_name}-${i}"
 }
 
 # Copy files matching BOTH .worktreeinclude AND .gitignore
@@ -163,22 +293,62 @@ JSON_EOF
 }
 
 create_worktree() {
-  local name=""
-  local base_branch="HEAD"
+  local dir_name=""
+  local repo_arg=""
+  local source_dir=""
+  local src_branch=""
+  local branch_name=""
+  local interactive=false
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --base|-b)
-        base_branch="$2"
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a directory." >&2
+          echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        repo_arg="$2"
         shift 2
         ;;
+      --src|-s)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source branch." >&2
+          echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        src_branch="$2"
+        shift 2
+        ;;
+      --branch|-b|--name|-n)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a branch name." >&2
+          echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        branch_name="$2"
+        shift 2
+        ;;
+      --interactive|-i)
+        interactive=true
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+        exit 1
+        ;;
       *)
-        if [ -z "$name" ]; then
-          name="$1"
+        if [ -z "$dir_name" ]; then
+          dir_name="$1"
         else
           echo "Error: Unknown argument '$1'" >&2
-          echo "Usage: wk new <NAME> [--base|-b BASE_BRANCH]" >&2
+          echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
           exit 1
         fi
         shift
@@ -186,49 +356,175 @@ create_worktree() {
     esac
   done
 
-  if [ -z "$name" ]; then
-    echo "Error: Name argument is required."
-    echo "Usage: wk new <NAME> [--base|-b BASE_BRANCH]"
+  while [[ $# -gt 0 ]]; do
+    if [ -z "$dir_name" ]; then
+      dir_name="$1"
+    else
+      echo "Error: Unknown argument '$1'" >&2
+      echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+      exit 1
+    fi
+    shift
+  done
+
+  source_dir=$(resolve_repo_dir "$repo_arg")
+
+  if [ "$interactive" = true ]; then
+    dir_name=$(prompt_value "Directory name: " "$dir_name")
+    repo_arg=$(prompt_value "Repository directory (--dir): " "$source_dir")
+    source_dir=$(resolve_repo_dir "$repo_arg")
+    src_branch=$(prompt_value "Source branch (--src): " "${src_branch:-$(get_default_branch "$source_dir")}")
+    branch_name=$(prompt_value "Branch (--branch): " "${branch_name:-$dir_name}")
+  fi
+
+  if [ -z "$dir_name" ]; then
+    echo "Error: Directory name argument is required." >&2
+    echo "Usage: wk new <DIR_NAME> [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
     exit 1
   fi
 
-  ensure_worktreeinclude
+  if [ -z "$src_branch" ]; then
+    src_branch=$(get_default_branch "$source_dir")
+  fi
 
-  local source_dir="$PWD"
-  TARGET_PATH=".claude/worktrees/${name}"
+  if [ -z "$branch_name" ]; then
+    branch_name="$dir_name"
+  fi
 
-  echo "Creating worktree '$name' at '$TARGET_PATH' from '$base_branch'..."
-  git worktree add "$TARGET_PATH" -b "$name" "$base_branch"
+  ensure_worktreeinclude "$source_dir"
+
+  local target_path="$source_dir/.claude/worktrees/${dir_name}"
+
+  if [ -e "$target_path" ]; then
+    echo "Error: Directory '$target_path' already exists." >&2
+    exit 1
+  fi
+
+  if git -C "$source_dir" show-ref --verify --quiet "refs/heads/$branch_name"; then
+    echo "Creating worktree directory '$dir_name' at '$target_path' on existing branch '$branch_name'..."
+    if ! git -C "$source_dir" worktree add "$target_path" "$branch_name"; then
+      echo "Error: Worktree creation failed." >&2
+      exit 1
+    fi
+  else
+    echo "Creating worktree directory '$dir_name' at '$target_path' with branch '$branch_name' from '$src_branch'..."
+    if ! git -C "$source_dir" worktree add "$target_path" -b "$branch_name" "$src_branch"; then
+      echo "Error: Worktree creation failed." >&2
+      exit 1
+    fi
+  fi
 
   echo "Running setup..."
-  run_setup "$source_dir" "$source_dir/$TARGET_PATH"
+  run_setup "$source_dir" "$target_path"
 }
 
 # Clone repo as sibling with setup
 clone_repo() {
   local name=""
   local manual_dir=""
+  local repo_arg=""
+  local source_dir=""
+  local src_branch=""
+  local branch_name=""
+  local interactive=false
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --manual|-m)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a directory." >&2
+          echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
         manual_dir="$2"
         shift 2
+        ;;
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a directory." >&2
+          echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        repo_arg="$2"
+        shift 2
+        ;;
+      --src|-s)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source branch." >&2
+          echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        src_branch="$2"
+        shift 2
+        ;;
+      --branch|-b|--name|-n)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a branch name." >&2
+          echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
+        fi
+        branch_name="$2"
+        shift 2
+        ;;
+      --interactive|-i)
+        interactive=true
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+        exit 1
         ;;
       *)
         if [ -z "$name" ]; then
           name="$1"
+        else
+          echo "Error: Unknown argument '$1'" >&2
+          echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+          exit 1
         fi
         shift
         ;;
     esac
   done
 
-  local source_dir="$PWD"
+  while [[ $# -gt 0 ]]; do
+    if [ -z "$name" ]; then
+      name="$1"
+    else
+      echo "Error: Unknown argument '$1'" >&2
+      echo "Usage: wk clone [NAME] [--dir DIR] [--src SRC] [--branch BRANCH]" >&2
+      exit 1
+    fi
+    shift
+  done
+
+  source_dir=$(resolve_repo_dir "$repo_arg")
+
+  if [ "$interactive" = true ]; then
+    manual_dir=$(prompt_value "Existing clone directory (--manual, blank to create clone): " "$manual_dir")
+    repo_arg=$(prompt_value "Repository directory (--dir): " "$source_dir")
+    source_dir=$(resolve_repo_dir "$repo_arg")
+
+    if [ -z "$manual_dir" ]; then
+      name=$(prompt_value "Clone name: " "${name:-$(auto_clone_name "$source_dir")}")
+      src_branch=$(prompt_value "Source branch (--src): " "${src_branch:-$(get_default_branch "$source_dir")}")
+      branch_name=$(prompt_value "Branch (--branch): " "${branch_name:-$src_branch}")
+    fi
+  fi
 
   # Manual mode: apply setup to existing clone
   if [ -n "$manual_dir" ]; then
+    if [ -n "$src_branch" ] || [ -n "$branch_name" ]; then
+      echo "Error: --src and --branch cannot be used with --manual." >&2
+      exit 1
+    fi
+
     # Resolve to absolute path
     if [[ ! "$manual_dir" = /* ]]; then
       manual_dir="$source_dir/$manual_dir"
@@ -244,7 +540,7 @@ clone_repo() {
       exit 1
     fi
 
-    ensure_worktreeinclude
+    ensure_worktreeinclude "$source_dir"
 
     echo "Applying setup to $manual_dir..."
     run_setup "$source_dir" "$manual_dir"
@@ -254,41 +550,55 @@ clone_repo() {
 
   # Clone mode: create new sibling clone
   local remote_url
-  remote_url=$(git remote get-url origin 2>/dev/null)
+  remote_url=$(git -C "$source_dir" remote get-url origin 2>/dev/null)
 
   if [ -z "$remote_url" ]; then
     echo "Error: No remote 'origin' found." >&2
     exit 1
   fi
 
-  # Auto-name if no name given
-  if [ -z "$name" ]; then
-    local base_name
-    base_name=$(basename "$source_dir")
-    # Strip existing numeric suffix to get the base
-    base_name=$(echo "$base_name" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
-    local parent_dir
-    parent_dir=$(dirname "$source_dir")
-    local i=2
-    while [ -d "$parent_dir/${base_name}-${i}" ]; do
-      ((i++))
-    done
-    name="${base_name}-${i}"
+  if [ -z "$src_branch" ]; then
+    src_branch=$(get_default_branch "$source_dir")
   fi
 
-  local target_path="../$name"
+  if [ -z "$branch_name" ]; then
+    branch_name="$src_branch"
+  fi
+
+  # Auto-name if no name given
+  if [ -z "$name" ]; then
+    name=$(auto_clone_name "$source_dir")
+  fi
+
+  local target_path
+  target_path="$(dirname "$source_dir")/$name"
 
   if [ -d "$target_path" ]; then
     echo "Error: Directory '$target_path' already exists." >&2
     exit 1
   fi
 
-  ensure_worktreeinclude
+  ensure_worktreeinclude "$source_dir"
 
-  echo "Cloning to '$target_path'..."
-  if ! git clone "$remote_url" "$target_path"; then
+  echo "Cloning '$src_branch' to '$target_path'..."
+  if ! git clone --branch "$src_branch" "$remote_url" "$target_path"; then
     echo "Error: Clone failed." >&2
     exit 1
+  fi
+
+  if [ "$branch_name" != "$src_branch" ]; then
+    echo "Creating branch '$branch_name' from '$src_branch'..."
+    if git -C "$target_path" show-ref --verify --quiet "refs/heads/$branch_name"; then
+      if ! git -C "$target_path" checkout "$branch_name"; then
+        echo "Error: Branch checkout failed." >&2
+        exit 1
+      fi
+    else
+      if ! git -C "$target_path" checkout -b "$branch_name"; then
+        echo "Error: Branch creation failed." >&2
+        exit 1
+      fi
+    fi
   fi
 
   echo "Running setup..."
@@ -479,10 +789,10 @@ case "$1" in
   list|ls|l)
     list_indexed
     ;;
-  config|c)
+  config)
     edit_config
     ;;
-  clone|cl)
+  clone|c)
     shift
     clone_repo "$@"
     ;;
@@ -492,6 +802,9 @@ case "$1" in
     ;;
   -h|--help|"")
     show_help
+    ;;
+  -v|--version|version)
+    echo "wk $VERSION"
     ;;
   [0-9])
     go_to_index "$1"
