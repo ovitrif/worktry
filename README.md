@@ -1,19 +1,5 @@
 # Worktry (wk CLI)
 
-Run parallel AI agent sessions using git worktrees or sibling clones.
-
-AI coding agents are easier to run in parallel when every session has its own checkout, branch, ignored config, and local permissions. `wk` is a small setup and navigation layer for those agent workspaces.
-
-- Create isolated worktrees or sibling clones for parallel agent sessions
-- Jump between worktrees or clones by index (`wk 1`, `wk 2`)
-- Pick source repos, source branches, and target branch names without leaving your shell
-- Copy `.env`, `.idea/`, and other ignored config files via `.worktreeinclude`
-- Set up Claude Code local permissions in each workspace
-
-Worktrees go in `.claude/worktrees/<name>` under the selected repo, matching Claude Code's `claude -w` layout. Clone mode covers repos or tools that behave better with full sibling checkouts.
-
-Forgot how it works? Run `worktry`, `wk`, or `wk --help`.
-
 ```sh
 ██╗     ██╗                   ██╗   ██████████╗
 ██║     ██║                   ██║   ╚═══██╔═══╝
@@ -64,9 +50,21 @@ FILES:
 ALIAS: worktry
 
 VERSION: 0.2.1
-
-See: https://github.com/ovitrif/worktry
 ```
+
+Run parallel AI agent sessions using git worktrees or sibling clones.
+
+AI coding agents are easier to run in parallel when every session has its own checkout, branch, ignored config, and local permissions. `wk` is a small setup and navigation layer for those agent workspaces.
+
+- Create isolated worktrees or sibling clones for parallel agent sessions
+- Jump between worktrees or clones by index (`wk 1`, `wk 2`)
+- Pick source repos, source branches, and target branch names without leaving your shell
+- Copy `.env`, `.idea/`, and other ignored config files via `.worktreeinclude`
+- Set up Claude Code local permissions in each workspace
+
+Worktrees go in `.claude/worktrees/<name>` under the selected repo, matching Claude Code's `claude -w` layout. Clone mode covers repos or tools that behave better with full sibling checkouts.
+
+Forgot how it works? Run `worktry`, `wk`, or `wk --help`.
 
 ## Quick start
 
