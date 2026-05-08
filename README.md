@@ -2,20 +2,6 @@
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
 
-```
-██╗     ██╗                   ██╗   ██████████╗
-██║     ██║                   ██║   ╚═══██╔═══╝
-██║ ██╗ ██║  ██████╗  ██████╗ ██║ ██╗   ██║  ██████╗ ██╗   ██╗
-██║████╗██║ ██╚═══██║ ██╔═══╝ █████╔╝   ██║  ██╔═══╝  ██╗ ██╔╝
- ███║ ███╔╝  ██████╔╝ ██║     ██╔═██╗   ██║  ██║       ████╔╝
- ╚══╝ ╚══╝   ╚═════╝  ╚═╝     ╚═╝ ╚═╝   ╚═╝  ╚═╝        ██╔╝
- ██ Vibe code in parallel using git worktrees or clones ██║
- █████████████████████████████████████████████████████████║
- ╚════════════════════════════════════════════════════════╝
-```
-
-## Why?
-
 AI coding agents are easier to run in parallel when every session has its own checkout, branch, ignored config, and local permissions. `wk` is a small setup and navigation layer for those agent workspaces.
 
 - Create isolated worktrees or sibling clones for parallel agent sessions
@@ -26,61 +12,7 @@ AI coding agents are easier to run in parallel when every session has its own ch
 
 Worktrees go in `.claude/worktrees/<name>` under the selected repo, matching Claude Code's `claude -w` layout. Clone mode covers repos or tools that behave better with full sibling checkouts.
 
-Forgot how it works? Run `worktry`, `wk`, or `wk --help`.
-
-```sh
-██╗     ██╗                   ██╗   ██████████╗
-██║     ██║                   ██║   ╚═══██╔═══╝
-██║ ██╗ ██║  ██████╗  ██████╗ ██║ ██╗   ██║  ██████╗ ██╗   ██╗
-██║████╗██║ ██╚═══██║ ██╔═══╝ █████╔╝   ██║  ██╔═══╝  ██╗ ██╔╝
- ███║ ███╔╝  ██████╔╝ ██║     ██╔═██╗   ██║  ██║       ████╔╝
- ╚══╝ ╚══╝   ╚═════╝  ╚═╝     ╚═╝ ╚═╝   ╚═╝  ╚═╝        ██╔╝
- ██ Vibe code in parallel using git worktrees or clones ██║
- █████████████████████████████████████████████████████████║
- ╚════════════════════════════════════════════════════════╝
-
-USAGE:
-wk <command> [options]
-wk <0-9>                        Quick navigation by index
-
-COMMANDS:
-new, n <name> [options]         Create worktree with setup
-clone, c [name] [options]       Clone repo as sibling with setup
-clone -m <dir>                  Apply setup to existing clone
-list, ls, l                     List all worktrees and clones
-go <name>                       Go to worktree by branch name
-back, b                         Back to main worktree
-config                          Edit .worktreeinclude config
--h, --help                      Show this help
--v, --version                   Show version
-
-NEW OPTIONS:
--d, --dir <dir>                 Repo dir to create from (default: current repo)
--s, --src <branch>              Source branch (default: repo default branch)
--b, --branch <branch>           Branch to create or check out (default: <name>)
--i, --interactive               Prompt for new options
-
-CLONE OPTIONS:
--d, --dir <dir>                 Repo dir to clone from (default: current repo)
--s, --src <branch>              Source branch (default: repo default branch)
--b, --branch <branch>           Branch to create or check out (default: --src)
--m, --manual <dir>              Apply setup to existing clone
--i, --interactive               Prompt for clone options
-
-NAVIGATION:
-wk 0                      Jump to main repo
-wk 1                      Jump to first worktree/clone
-wk 2-9                    Jump to 2nd-9th worktree/clone
-
-FILES:
-.worktreeinclude          Patterns for files to copy (gitignore-style)
-
-ALIAS: worktry
-
-VERSION: 0.2.1
-
-See: https://github.com/ovitrif/worktry
-```
+Run `worktry`, `wk`, or `wk --help` when you need a command reminder.
 
 ## Quick start
 
