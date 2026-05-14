@@ -5,7 +5,35 @@
 FAILURES=0
 fail() { echo "FAIL: $1"; FAILURES=$((FAILURES + 1)); }
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TMPDIR=$(mktemp -d)
+
+echo "=== script syntax ==="
+bash -n "$SCRIPT_DIR/src/wk" || fail "src/wk has bash syntax errors"
+bash -n "$SCRIPT_DIR/install.sh" || fail "install.sh has bash syntax errors"
+bash -n "$SCRIPT_DIR/completions/wk.bash" || fail "bash completion has syntax errors"
+BASH_COMPLETION_OUTPUT=$(bash -c "source '$SCRIPT_DIR/completions/wk.bash'; COMP_WORDS=(wk cl); COMP_CWORD=1; _wk_complete; printf '%s\n' \"\${COMPREPLY[@]}\"")
+echo "$BASH_COMPLETION_OUTPUT" | grep -q "^clone$" || fail "bash completion did not complete clone command"
+if command -v zsh >/dev/null 2>&1; then
+  zsh -n "$SCRIPT_DIR/completions/wk.zsh" || fail "zsh completion has syntax errors"
+  ZSH_COMPLETION_HOME="$TMPDIR/zsh-completion-home"
+  mkdir -p "$ZSH_COMPLETION_HOME"
+  HOME="$ZSH_COMPLETION_HOME" zsh -fc "source '$SCRIPT_DIR/completions/wk.zsh'; whence -w _wk >/dev/null" || fail "zsh completion did not register _wk"
+fi
+
+echo ""
+echo "=== install completions (temp HOME) ==="
+INSTALL_HOME="$TMPDIR/install-home"
+mkdir -p "$INSTALL_HOME"
+touch "$INSTALL_HOME/.bashrc" "$INSTALL_HOME/.zshrc"
+(cd "$SCRIPT_DIR" && printf "y\n" | HOME="$INSTALL_HOME" SHELL=/bin/bash ./install.sh)
+test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.bash" || fail "bash completion not installed"
+test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.zsh" || fail "zsh completion not installed"
+grep -q "worktry/completions/wk.bash" "$INSTALL_HOME/.bashrc" || fail "bash completion source line not added"
+bash -c "source '$INSTALL_HOME/.local/share/worktry/completions/wk.bash'; complete -p wk >/dev/null" || fail "bash completion did not register wk"
+(cd "$SCRIPT_DIR" && printf "y\n" | HOME="$INSTALL_HOME" SHELL=/bin/zsh ./install.sh)
+grep -q "worktry/completions/wk.zsh" "$INSTALL_HOME/.zshrc" || fail "zsh completion source line not added"
+
 cd "$TMPDIR"
 git init test-repo && cd test-repo
 git config user.email "test@test.com"
@@ -19,10 +47,14 @@ echo "=== wk --help ==="
 wk --help || fail "wk --help exited non-zero"
 wk --help | grep -q "clone, c" || fail "wk --help missing clone c alias"
 wk --help | grep -q "config                          Edit" || fail "wk --help should show config without c alias"
+wk --help | grep -q "wk                              Open interactive setup" || fail "wk --help missing interactive usage"
+wk --help | grep -q "wk new <name> \\[--dir <source-dir>\\]" || fail "wk --help missing new example"
+wk --help | grep -q "wk clone \\[<name>\\] \\[--dir <source-dir>\\]" || fail "wk --help missing clone example"
+wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fail "wk --help missing interactive quit hint"
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.2.1" || fail "wk --version did not print 0.2.1"
+wk --version | grep -q "wk 0.3.0" || fail "wk --version did not print 0.3.0"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -76,6 +108,14 @@ wk new test-feature-2 --src main
 test -d .claude/worktrees/test-feature-2 || fail "worktree with --src not created"
 
 echo ""
+echo "=== wk new from detached HEAD ==="
+git checkout --detach main >/dev/null 2>&1
+wk new detached-feature
+test -d .claude/worktrees/detached-feature || fail "worktree from detached HEAD not created"
+test "$(git -C .claude/worktrees/detached-feature branch --show-current)" = "detached-feature" || fail "worktree from detached HEAD did not create requested branch"
+git checkout main >/dev/null 2>&1
+
+echo ""
 echo "=== wk new with separate directory and branch ==="
 wk new dir-only --src main --branch branch-only
 test -d .claude/worktrees/dir-only || fail "worktree did not use positional argument as directory"
@@ -94,6 +134,13 @@ cd "$TMPDIR/test-repo"
 printf "interactive-dir\n%s\nmain\ninteractive-branch\n" "$TMPDIR/test-repo" | wk new --interactive
 test -d .claude/worktrees/interactive-dir || fail "interactive wk new did not create worktree"
 test "$(git -C .claude/worktrees/interactive-dir branch --show-current)" = "interactive-branch" || fail "interactive wk new did not create requested branch"
+
+echo ""
+echo "=== wk --interactive (worktree menu, piped input) ==="
+cd "$TMPDIR/test-repo"
+printf "1\n1\nmenu-dir\n%s\nmain\nmenu-branch\n" "$TMPDIR/test-repo" | wk --interactive
+test -d .claude/worktrees/menu-dir || fail "interactive menu did not create worktree"
+test "$(git -C .claude/worktrees/menu-dir branch --show-current)" = "menu-branch" || fail "interactive menu did not create requested branch"
 
 echo ""
 echo "=== wk clone -m (manual clone setup) ==="
@@ -121,11 +168,21 @@ echo "$CLONE_LS" | grep -q "\[clone\]" || fail "wk ls from clone missing [clone]
 echo "$CLONE_LS" | grep -q "\*" || fail "wk ls from clone missing * marker"
 
 echo ""
-echo "=== wk clone (auto-clone) ==="
+echo "=== prepare clone origin ==="
 cd "$TMPDIR/test-repo"
 # Set origin to local path for testing
 git remote remove origin 2>/dev/null
 git remote add origin "$TMPDIR/test-repo"
+
+echo ""
+echo "=== wk --interactive (clone menu, piped input) ==="
+printf "2\n2\n%s\nmenu-clone\n" "$TMPDIR/test-repo" | wk --interactive
+test -d "$TMPDIR/menu-clone" || fail "interactive menu did not create clone"
+test -f "$TMPDIR/menu-clone/.claude/settings.local.json" || fail "interactive menu clone didn't create Claude settings"
+
+echo ""
+echo "=== wk clone (auto-clone) ==="
+cd "$TMPDIR/test-repo"
 wk clone test-repo-auto --src main
 test -d "$TMPDIR/test-repo-auto" || fail "wk clone did not create sibling"
 test -f "$TMPDIR/test-repo-auto/.claude/settings.local.json" || fail "wk clone didn't create Claude settings"

@@ -17,6 +17,7 @@ Worktrees are created at `.claude/worktrees/<name>` under the selected repo dire
 ```
 worktry/
 ├── src/wk               # Main bash script (all commands)
+├── completions/         # Bash and zsh shell completions
 ├── install.sh           # Installation script
 ├── test/verify.sh       # End-to-end verification script
 ├── README.md            # User documentation
@@ -35,7 +36,17 @@ Main bash script containing:
 - `resolve_repo_dir()` -- resolves `--dir` or the current directory to the git repository root
 - `get_default_branch()` -- determines the repo default branch for creation commands
 - `prompt_value()` -- reads interactive values with defaults
+- `cancel_interactive()` -- exits interactive flows cleanly on Ctrl+C or Esc cancellation
+- `read_interactive_line()` -- reads cancelable text prompts in terminal mode
 - `auto_clone_name()` -- picks the next sibling clone name
+- `sanitize_workspace_name()` -- converts branch or folder hints into safe workspace names
+- `get_current_branch()` -- resolves the checked-out branch, falling back to the default branch for interactive defaults
+- `auto_worktree_name()` -- picks an unused worktree directory and branch-friendly name
+- `prompt_menu_choice()` -- reads numbered interactive menu choices, including arrow-key and Esc handling in terminal mode
+- `prompt_repo_dir()` -- prompts for and resolves a source repository directory
+- `run_interactive_worktree_menu()` -- guides common worktree creation flows
+- `run_interactive_clone_menu()` -- guides common clone creation flows
+- `run_interactive_menu()` -- top-level interactive setup menu
 - `copy_worktree_files()` -- copies files matching `.worktreeinclude` and `.gitignore`
 - `run_setup()` -- creates Claude Code permissions and copies config files
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup
@@ -52,11 +63,18 @@ Main bash script containing:
 
 - `.worktreeinclude` -- gitignore-style patterns for files to copy (auto-created when needed)
 
+### `completions/`
+
+- `wk.bash` -- bash completion for commands, options, branches, dirs, and `wk go`
+- `wk.zsh` -- zsh completion for commands, options, branches, dirs, and `wk go`
+
 ### `install.sh`
 
 Installs:
 - Script to `~/.local/bin/wk` (with `worktry` symlink)
+- Shell completions to `~/.local/share/worktry/completions/`
 - Shell function to `~/.zshrc` or `~/.bashrc` (for `cd` support on navigation commands)
+- Completion source line to `~/.zshrc` or `~/.bashrc`
 
 ## Coding rules
 

@@ -12,6 +12,7 @@
  ╚════════════════════════════════════════════════════════╝
 
 USAGE:
+wk                              Open interactive setup
 wk <command> [options]
 wk <0-9>                        Quick navigation by index
 
@@ -23,8 +24,18 @@ list, ls, l                     List all worktrees and clones
 go <name>                       Go to worktree by branch name
 back, b                         Back to main worktree
 config                          Edit .worktreeinclude config
+-i, --interactive               Open interactive setup
 -h, --help                      Show this help
 -v, --version                   Show version
+
+EXAMPLES:
+wk new <name> [--dir <source-dir>] [--src <source-branch>] [--branch <branch>] [--interactive]
+wk clone [<name>] [--dir <source-dir>] [--src <source-branch>] [--branch <branch>] [--interactive]
+wk clone --manual <existing-clone-dir>
+
+INTERACTIVE:
+Use Up/Down then Enter, or type a number.
+Press Ctrl+C to quit, or press Esc twice to cancel.
 
 NEW OPTIONS:
 -d, --dir <dir>                 Repo dir to create from (default: current repo)
@@ -49,7 +60,7 @@ FILES:
 
 ALIAS: worktry
 
-VERSION: 0.2.1
+VERSION: 0.3.0
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -64,7 +75,7 @@ AI coding agents are easier to run in parallel when every session has its own ch
 
 Worktrees go in `.claude/worktrees/<name>` under the selected repo, matching Claude Code's `claude -w` layout. Clone mode covers repos or tools that behave better with full sibling checkouts.
 
-Forgot how it works? Run `worktry`, `wk`, or `wk --help`.
+Forgot how it works? Run `wk` for the interactive setup flow, or `wk --help` for the command reference.
 
 ## Quick start
 
@@ -75,6 +86,7 @@ cd worktry && ./install.sh
 
 # In a project you want to hand to multiple agents
 cd your-project
+wk                        # guided setup for worktrees and clones
 wk new feature            # create an agent workspace from the repo default branch
 wk 1                      # jump to it and start another agent session there
 wk 0                      # jump back
@@ -94,9 +106,25 @@ cd worktry
 ./install.sh
 ```
 
-This puts `wk` in `~/.local/bin/` (with a `worktry` alias) and adds a shell function to your `.zshrc` or `.bashrc` so navigation commands can change your current directory.
+This puts `wk` in `~/.local/bin/` (with a `worktry` alias), installs bash/zsh completions under `~/.local/share/worktry/completions/`, and adds shell setup to your `.zshrc` or `.bashrc` so navigation commands can change your current directory.
 
 ## Usage
+
+### Interactive setup
+
+```bash
+wk
+```
+
+Opens a guided setup flow. Pick `worktree` or `clone`, then choose a common workflow:
+
+- Ask each parameter
+- Create from the current branch
+- Create from the default branch
+- Create with a custom branch off the default branch
+- Apply setup to an existing clone
+
+Prompts show a default value when one is available. Press Enter to accept it or type a custom value. In menus, use Up/Down then Enter, or type a number. Press `Ctrl+C` to quit, or press `Esc` twice to cancel.
 
 ### Configure files to copy
 
@@ -154,13 +182,20 @@ wk back                   # back to main (alias: b)
 wk ls                     # list everything with indices
 ```
 
+### Shell completions
+
+`./install.sh` installs completions for bash and zsh, then sources the right one from your detected shell rc file. Restart your terminal or run `source ~/.zshrc` / `source ~/.bashrc` after install.
+
+Completions cover commands, aliases, options, branch names for `--src`/`--branch`, directories for `--dir`/`--manual`, and worktree branch names for `wk go`.
+
 ## Commands
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `wk new <name> [-d DIR] [-s SRC] [-b BRANCH]` | `n` | Create worktree with setup |
-| `wk clone [name] [-d DIR] [-s SRC] [-b BRANCH]` | `c` | Clone repo as sibling with setup |
-| `wk clone -m <dir>` | -- | Apply setup to existing clone |
+| `wk` | -- | Open interactive setup |
+| `wk new <name> [--dir <source-dir>] [--src <source-branch>] [--branch <branch>]` | `n` | Create worktree with setup |
+| `wk clone [<name>] [--dir <source-dir>] [--src <source-branch>] [--branch <branch>]` | `c` | Clone repo as sibling with setup |
+| `wk clone --manual <existing-clone-dir>` | -- | Apply setup to existing clone |
 | `wk list` | `ls`, `l` | List all worktrees and clones |
 | `wk go <name>` | -- | Go to worktree by branch name |
 | `wk back` | `b` | Back to main worktree |
@@ -176,6 +211,8 @@ wk ls                     # list everything with indices
 | File | What it does |
 |------|-------------|
 | `.worktreeinclude` | Gitignore-style patterns for files to copy (auto-created) |
+| `~/.local/share/worktry/completions/wk.bash` | Bash completion installed by `./install.sh` |
+| `~/.local/share/worktry/completions/wk.zsh` | Zsh completion installed by `./install.sh` |
 
 ## Contributing
 
