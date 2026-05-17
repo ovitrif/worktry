@@ -32,6 +32,7 @@ worktry/
 Main bash script containing:
 - `show_help()` -- help message with all commands
 - `create_worktreeinclude()` -- creates `.worktreeinclude` template
+- `ensure_worktreeinclude_defaults()` -- backfills new generated `.worktreeinclude` defaults into existing configs
 - `ensure_worktreeinclude()` -- auto-creates `.worktreeinclude` if missing
 - `resolve_repo_dir()` -- resolves `--dir` or the current directory to the git repository root
 - `get_default_branch()` -- determines the repo default branch for creation commands

@@ -39,7 +39,11 @@ git init test-repo && cd test-repo
 git config user.email "test@test.com"
 git config user.name "Test"
 echo "SECRET=123" > .env
+mkdir -p app/src/mainnetRelease
+echo '{"project_info":{"project_id":"test"}}' > app/google-services.json
+echo '{"project_info":{"project_id":"test-mainnet"}}' > app/src/mainnetRelease/google-services.json
 echo ".env" > .gitignore
+echo "google-services.json" >> .gitignore
 git add -A && git commit -m "init"
 git branch -M main
 
@@ -54,7 +58,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.0" || fail "wk --version did not print 0.3.0"
+wk --version | grep -q "wk 0.3.1" || fail "wk --version did not print 0.3.1"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -63,6 +67,8 @@ test -d .claude/worktrees/test-feature || fail "worktree not at .claude/worktree
 test -f .worktreeinclude || fail ".worktreeinclude not auto-created by wk new"
 test ! -f .worktree-setup.sh || fail ".worktree-setup.sh should NOT be generated"
 test -f .claude/worktrees/test-feature/.claude/settings.local.json || fail "Claude settings not created in worktree"
+test -f .claude/worktrees/test-feature/app/google-services.json || fail "root app google-services.json not copied to worktree"
+test -f .claude/worktrees/test-feature/app/src/mainnetRelease/google-services.json || fail "mainnetRelease google-services.json not copied to worktree"
 git rev-parse --verify test-feature >/dev/null 2>&1 || fail "wk new did not create branch named after directory by default"
 
 echo ""
@@ -173,12 +179,18 @@ cd "$TMPDIR/test-repo"
 # Set origin to local path for testing
 git remote remove origin 2>/dev/null
 git remote add origin "$TMPDIR/test-repo"
+# Simulate an older generated .worktreeinclude before Android defaults existed.
+awk '$0 != "google-services.json"' .worktreeinclude > "$TMPDIR/old-worktreeinclude"
+cp "$TMPDIR/old-worktreeinclude" .worktreeinclude
 
 echo ""
 echo "=== wk --interactive (clone menu, piped input) ==="
 printf "2\n2\n%s\nmenu-clone\n" "$TMPDIR/test-repo" | wk --interactive
 test -d "$TMPDIR/menu-clone" || fail "interactive menu did not create clone"
 test -f "$TMPDIR/menu-clone/.claude/settings.local.json" || fail "interactive menu clone didn't create Claude settings"
+grep -q "^google-services.json$" .worktreeinclude || fail "existing .worktreeinclude was not upgraded with google-services.json"
+test -f "$TMPDIR/menu-clone/app/google-services.json" || fail "interactive menu clone did not copy app google-services.json"
+test -f "$TMPDIR/menu-clone/app/src/mainnetRelease/google-services.json" || fail "interactive menu clone did not copy mainnetRelease google-services.json"
 
 echo ""
 echo "=== wk clone (auto-clone) ==="

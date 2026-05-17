@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 show_help() {
   cat << EOF
@@ -90,10 +90,31 @@ create_worktreeinclude() {
 .idea/
 # .vscode/
 
+# Android/Firebase config
+google-services.json
+
 # Local properties (uncomment as needed)
 # local.properties
 # keystore.properties
 EOF
+}
+
+ensure_worktreeinclude_defaults() {
+  local dir="${1:-.}"
+  local include_file="$dir/.worktreeinclude"
+
+  if ! awk '
+    /^[[:space:]]*($|#)/ { next }
+    /(^|[[:space:]])google-services[.]json[[:space:]]*$/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$include_file" 2>/dev/null; then
+    {
+      echo ""
+      echo "# Android/Firebase config"
+      echo "google-services.json"
+    } >> "$include_file"
+    echo "Updated .worktreeinclude defaults"
+  fi
 }
 
 # Auto-create .worktreeinclude if missing
@@ -103,6 +124,8 @@ ensure_worktreeinclude() {
   if [ ! -f "$dir/.worktreeinclude" ]; then
     create_worktreeinclude "$dir"
     echo "Created .worktreeinclude template"
+  else
+    ensure_worktreeinclude_defaults "$dir"
   fi
 }
 
@@ -562,6 +585,9 @@ copy_worktree_files() {
 
       # Direct match or wildcard
       if [[ "$file" == $pattern ]]; then
+        matched=true
+      # Gitignore-style basename pattern (no slash matches at any depth)
+      elif [[ "$pattern" != */* ]] && [[ "$(basename "$file")" == $pattern ]]; then
         matched=true
       # Directory pattern (pattern/)
       elif [[ "$pattern" == */ ]] && [[ "$file" == ${pattern}* ]]; then

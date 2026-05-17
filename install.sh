@@ -90,8 +90,13 @@ if [ -n "$RC_FILE" ]; then
   else
     echo ""
     echo "Navigation commands (wk go/back/0-9) require a shell function."
-    read -p "Add shell function to $RC_FILE? [Y/n] " -n 1 -r
-    echo
+    if [ -t 0 ]; then
+      read -p "Add shell function to $RC_FILE? [Y/n] " -n 1 -r
+      echo
+    else
+      REPLY=""
+      echo "No interactive stdin; adding shell function to $RC_FILE by default."
+    fi
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
       echo "" >> "$RC_FILE"
       echo "$SHELL_FUNC" >> "$RC_FILE"
