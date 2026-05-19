@@ -21,7 +21,7 @@ new, n <name> [options]         Create worktree with setup
 clone, c [name] [options]       Clone repo as sibling with setup
 clone -m <dir>                  Apply setup to existing clone
 list, ls, l                     List all worktrees and clones
-go <name>                       Go to worktree by branch name
+go <name|index>                 Go to worktree by branch name or list index
 back, b                         Back to main worktree
 config                          Edit .worktreeinclude config
 -i, --interactive               Open interactive setup
@@ -60,7 +60,7 @@ FILES:
 
 ALIAS: worktry
 
-VERSION: 0.3.3
+VERSION: 0.3.4
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -180,6 +180,7 @@ wk 1                      # first worktree/clone
 wk 2                      # second worktree/clone
 wk 11                     # eleventh worktree/clone, if listed
 wk go feature-name        # by branch name
+wk go 11                  # by list index
 wk back                   # back to main (alias: b)
 wk ls                     # list everything with indices
 ```
@@ -199,7 +200,7 @@ Completions cover commands, aliases, options, branch names for `--src`/`--branch
 | `wk clone [<name>] [--dir <source-dir>] [--src <source-branch>] [--branch <branch>]` | `c` | Clone repo as sibling with setup |
 | `wk clone --manual <existing-clone-dir>` | -- | Apply setup to existing clone |
 | `wk list` | `ls`, `l` | List all worktrees and clones |
-| `wk go <name>` | -- | Go to worktree by branch name |
+| `wk go <name|index>` | -- | Go to worktree by branch name or list index |
 | `wk back` | `b` | Back to main worktree |
 | `wk config` | -- | Edit .worktreeinclude |
 | `wk <index>` | -- | Go to worktree/clone by list index |

@@ -73,7 +73,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.3" || fail "wk --version did not print 0.3.3"
+wk --version | grep -q "wk 0.3.4" || fail "wk --version did not print 0.3.4"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -254,6 +254,19 @@ OUTPUT=$(command wk 10)
 echo "wk 10 -> $OUTPUT"
 test "$OUTPUT" = "$INDEX10_PATH" || fail "wk 10 did not navigate to listed index 10"
 test -d "$OUTPUT" || fail "wk 10 output is not a valid directory"
+
+OUTPUT=$(command wk go 10)
+echo "wk go 10 -> $OUTPUT"
+test "$OUTPUT" = "$INDEX10_PATH" || fail "wk go 10 did not navigate to listed index 10"
+
+echo ""
+echo "=== wk go numeric branch fallback ==="
+wk new numeric-branch-dir --src main --branch 123
+NUMERIC_BRANCH_PATH=$(cd "$TMPDIR/test-repo/.claude/worktrees/numeric-branch-dir" && pwd -P)
+OUTPUT=$(command wk go 123)
+echo "wk go 123 -> $OUTPUT"
+test "$OUTPUT" = "$NUMERIC_BRANCH_PATH" || fail "wk go numeric fallback did not navigate to numeric branch name"
+test -d "$OUTPUT" || fail "wk go numeric fallback output is not a valid directory"
 
 # Cleanup
 cd /

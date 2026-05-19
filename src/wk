@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.3"
+VERSION="0.3.4"
 
 show_help() {
   cat << EOF
@@ -24,7 +24,7 @@ new, n <name> [options]         Create worktree with setup
 clone, c [name] [options]       Clone repo as sibling with setup
 clone -m <dir>                  Apply setup to existing clone
 list, ls, l                     List all worktrees and clones
-go <name>                       Go to worktree by branch name
+go <name|index>                 Go to worktree by branch name or list index
 back, b                         Back to main worktree
 config                          Edit .worktreeinclude config
 -i, --interactive               Open interactive setup
@@ -991,9 +991,17 @@ clone_repo() {
 go_to_worktree() {
   local name="$1"
   if [ -z "$name" ]; then
-    echo "Error: Branch name required." >&2
-    echo "Usage: wk go <branch-name>" >&2
+    echo "Error: Branch name or index required." >&2
+    echo "Usage: wk go <branch-name|index>" >&2
     exit 1
+  fi
+
+  if [[ "$name" =~ ^[0-9]+$ ]]; then
+    local index_path
+    if index_path=$(get_path_for_index "$name"); then
+      print_navigation_target "$index_path"
+      return
+    fi
   fi
 
   # Find worktree path by branch name
@@ -1078,13 +1086,11 @@ collect_entries() {
   done | awk -F'|' '!seen[$1]++'
 }
 
-# Navigate to worktree/clone by index
-go_to_index() {
+get_path_for_index() {
   local requested="$1"
 
   if [[ ! "$requested" =~ ^[0-9]+$ ]]; then
-    echo "Error: Invalid index '$requested'" >&2
-    exit 1
+    return 2
   fi
 
   local index=$((10#$requested))
@@ -1095,6 +1101,23 @@ go_to_index() {
   done < <(collect_entries)
 
   if [[ $index -ge ${#entries[@]} ]]; then
+    return 1
+  fi
+
+  echo "${entries[$index]}"
+}
+
+# Navigate to worktree/clone by index
+go_to_index() {
+  local requested="$1"
+  local path
+
+  if ! path=$(get_path_for_index "$requested"); then
+    if [[ ! "$requested" =~ ^[0-9]+$ ]]; then
+      echo "Error: Invalid index '$requested'" >&2
+      exit 1
+    fi
+
     echo "Error: No entry at index $requested" >&2
     echo "" >&2
     echo "Available:" >&2
@@ -1102,7 +1125,7 @@ go_to_index() {
     exit 1
   fi
 
-  print_navigation_target "${entries[$index]}"
+  print_navigation_target "$path"
 }
 
 # List all worktrees and clones with aligned columns

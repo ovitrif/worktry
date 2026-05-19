@@ -54,9 +54,10 @@ Main bash script containing:
 - `run_setup()` -- creates Claude Code permissions and copies config files
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup
 - `clone_repo()` -- clone repo as sibling or apply setup to existing clone
-- `go_to_worktree()` -- navigate by branch name
+- `go_to_worktree()` -- navigate by branch name or list index
 - `go_back()` -- navigate to main worktree
 - `collect_entries()` -- find all worktrees and sibling clones (unified, deduplicated)
+- `get_path_for_index()` -- resolves a numeric list index to a worktree or clone path
 - `go_to_index()` -- navigate by numeric list index
 - `list_indexed()` -- list all with aligned columns, type labels, current marker
 - `edit_config()` -- open `.worktreeinclude` in editor
