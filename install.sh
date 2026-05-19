@@ -28,7 +28,7 @@ SHELL_FUNC='# wk (worktry) - cd wrapper for navigation commands
 wk() {
   if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]+$ ]]; then
     local target
-    target=$(command wk "$@")
+    target=$(WK_SHELL_WRAPPER=1 command wk "$@")
     if [[ -d "$target" ]]; then
       cd "$target" && echo "→ $target"
     fi
@@ -74,10 +74,12 @@ install_or_update_shell_function() {
 
     rm -f "$replacement_file"
     echo "✓ Updated wk function in $rc_file"
+    echo "  Run 'source $rc_file' or restart your terminal to use navigation commands"
   else
     echo "" >> "$rc_file"
     echo "$SHELL_FUNC" >> "$rc_file"
     echo "✓ Added wk function to $rc_file"
+    echo "  Run 'source $rc_file' or restart your terminal to use navigation commands"
   fi
 }
 
@@ -144,7 +146,6 @@ if [ -n "$RC_FILE" ]; then
     fi
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
       install_or_update_shell_function "$RC_FILE"
-      echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
     else
       echo "Skipped. To add manually, append to $RC_FILE:"
       echo ""

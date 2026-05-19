@@ -41,10 +41,12 @@ EOF
 test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.bash" || fail "bash completion not installed"
 test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.zsh" || fail "zsh completion not installed"
 grep -Fq '^[0-9]+$' "$INSTALL_HOME/.bashrc" || fail "bash shell function was not updated for multi-digit indexes"
+grep -Fq 'WK_SHELL_WRAPPER=1' "$INSTALL_HOME/.bashrc" || fail "bash shell function does not mark wrapper navigation calls"
 grep -q "worktry/completions/wk.bash" "$INSTALL_HOME/.bashrc" || fail "bash completion source line not added"
 bash -c "source '$INSTALL_HOME/.local/share/worktry/completions/wk.bash'; complete -p wk >/dev/null" || fail "bash completion did not register wk"
 (cd "$SCRIPT_DIR" && printf "y\n" | HOME="$INSTALL_HOME" SHELL=/bin/zsh ./install.sh)
 grep -Fq '^[0-9]+$' "$INSTALL_HOME/.zshrc" || fail "zsh shell function was not added for multi-digit indexes"
+grep -Fq 'WK_SHELL_WRAPPER=1' "$INSTALL_HOME/.zshrc" || fail "zsh shell function does not mark wrapper navigation calls"
 grep -q "worktry/completions/wk.zsh" "$INSTALL_HOME/.zshrc" || fail "zsh completion source line not added"
 
 cd "$TMPDIR"
@@ -71,7 +73,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.2" || fail "wk --version did not print 0.3.2"
+wk --version | grep -q "wk 0.3.3" || fail "wk --version did not print 0.3.3"
 
 echo ""
 echo "=== wk new (no init needed) ==="

@@ -32,6 +32,8 @@ worktry/
 Main bash script containing:
 - `show_help()` -- help message with all commands
 - `create_worktreeinclude()` -- creates `.worktreeinclude` template
+- `warn_if_navigation_wrapper_inactive()` -- explains when navigation can only print a path because the shell wrapper is stale or inactive
+- `print_navigation_target()` -- prints navigation targets for the shell wrapper
 - `ensure_worktreeinclude_defaults()` -- backfills new generated `.worktreeinclude` defaults into existing configs
 - `ensure_worktreeinclude()` -- auto-creates `.worktreeinclude` if missing
 - `resolve_repo_dir()` -- resolves `--dir` or the current directory to the git repository root

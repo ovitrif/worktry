@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.2"
+VERSION="0.3.3"
 
 show_help() {
   cat << EOF
@@ -67,6 +67,27 @@ VERSION: $VERSION
 
 See: https://github.com/ovitrif/worktry
 EOF
+}
+
+warn_if_navigation_wrapper_inactive() {
+  if [[ -n "${WK_SHELL_WRAPPER:-}" || ! -t 1 ]]; then
+    return
+  fi
+
+  local source_hint="source your shell config"
+  if [[ "${SHELL:-}" == */zsh ]]; then
+    source_hint="source ~/.zshrc"
+  elif [[ "${SHELL:-}" == */bash ]]; then
+    source_hint="source ~/.bashrc"
+  fi
+
+  echo "Note: wk can only print this path because the shell navigation wrapper is not active in this terminal." >&2
+  echo "Run '$source_hint' or open a new terminal so wk can cd for navigation commands." >&2
+}
+
+print_navigation_target() {
+  warn_if_navigation_wrapper_inactive
+  echo "$1"
 }
 
 # Create .worktreeinclude file with example patterns
@@ -987,7 +1008,7 @@ go_to_worktree() {
   fi
 
   # Output path for shell function to cd
-  echo "$path"
+  print_navigation_target "$path"
 }
 
 # Navigate back to main worktree
@@ -1008,7 +1029,7 @@ go_back() {
     exit 1
   fi
 
-  echo "$main_path"
+  print_navigation_target "$main_path"
 }
 
 # Collect all entries (worktrees + sibling clones, deduplicated)
@@ -1081,7 +1102,7 @@ go_to_index() {
     exit 1
   fi
 
-  echo "${entries[$index]}"
+  print_navigation_target "${entries[$index]}"
 }
 
 # List all worktrees and clones with aligned columns
