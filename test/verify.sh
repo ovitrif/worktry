@@ -26,12 +26,25 @@ echo "=== install completions (temp HOME) ==="
 INSTALL_HOME="$TMPDIR/install-home"
 mkdir -p "$INSTALL_HOME"
 touch "$INSTALL_HOME/.bashrc" "$INSTALL_HOME/.zshrc"
+cat > "$INSTALL_HOME/.bashrc" <<'EOF'
+# wk (worktry) - cd wrapper for navigation commands
+wk() {
+  if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]$ ]]; then
+    command wk "$@"
+  else
+    command wk "$@"
+  fi
+}
+alias worktry=wk
+EOF
 (cd "$SCRIPT_DIR" && printf "y\n" | HOME="$INSTALL_HOME" SHELL=/bin/bash ./install.sh)
 test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.bash" || fail "bash completion not installed"
 test -f "$INSTALL_HOME/.local/share/worktry/completions/wk.zsh" || fail "zsh completion not installed"
+grep -Fq '^[0-9]+$' "$INSTALL_HOME/.bashrc" || fail "bash shell function was not updated for multi-digit indexes"
 grep -q "worktry/completions/wk.bash" "$INSTALL_HOME/.bashrc" || fail "bash completion source line not added"
 bash -c "source '$INSTALL_HOME/.local/share/worktry/completions/wk.bash'; complete -p wk >/dev/null" || fail "bash completion did not register wk"
 (cd "$SCRIPT_DIR" && printf "y\n" | HOME="$INSTALL_HOME" SHELL=/bin/zsh ./install.sh)
+grep -Fq '^[0-9]+$' "$INSTALL_HOME/.zshrc" || fail "zsh shell function was not added for multi-digit indexes"
 grep -q "worktry/completions/wk.zsh" "$INSTALL_HOME/.zshrc" || fail "zsh completion source line not added"
 
 cd "$TMPDIR"
@@ -58,7 +71,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.1" || fail "wk --version did not print 0.3.1"
+wk --version | grep -q "wk 0.3.2" || fail "wk --version did not print 0.3.2"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -228,6 +241,17 @@ for d in "$TMPDIR"/test-repo-[0-9]*; do
   fi
 done
 $FOUND_AUTO || fail "wk clone auto-numbering failed"
+
+echo ""
+echo "=== wk multi-digit index ==="
+LS_OUTPUT=$(wk ls)
+echo "$LS_OUTPUT"
+INDEX10_PATH=$(echo "$LS_OUTPUT" | awk '$1 == 10 { print $2 }')
+test -n "$INDEX10_PATH" || fail "wk ls did not produce index 10 for multi-digit navigation test"
+OUTPUT=$(command wk 10)
+echo "wk 10 -> $OUTPUT"
+test "$OUTPUT" = "$INDEX10_PATH" || fail "wk 10 did not navigate to listed index 10"
+test -d "$OUTPUT" || fail "wk 10 output is not a valid directory"
 
 # Cleanup
 cd /

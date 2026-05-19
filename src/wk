@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.1"
+VERSION="0.3.2"
 
 show_help() {
   cat << EOF
@@ -17,7 +17,7 @@ show_help() {
 USAGE:
 wk                              Open interactive setup
 wk <command> [options]
-wk <0-9>                        Quick navigation by index
+wk <index>                      Quick navigation by list index
 
 COMMANDS:
 new, n <name> [options]         Create worktree with setup
@@ -56,7 +56,7 @@ CLONE OPTIONS:
 NAVIGATION:
 wk 0                      Jump to main repo
 wk 1                      Jump to first worktree/clone
-wk 2-9                    Jump to 2nd-9th worktree/clone
+wk <index>                Jump to any listed worktree/clone
 
 FILES:
 .worktreeinclude          Patterns for files to copy (gitignore-style)
@@ -1057,9 +1057,16 @@ collect_entries() {
   done | awk -F'|' '!seen[$1]++'
 }
 
-# Navigate to worktree/clone by index (0 = first, 1-9 = others)
+# Navigate to worktree/clone by index
 go_to_index() {
-  local index="$1"
+  local requested="$1"
+
+  if [[ ! "$requested" =~ ^[0-9]+$ ]]; then
+    echo "Error: Invalid index '$requested'" >&2
+    exit 1
+  fi
+
+  local index=$((10#$requested))
 
   local entries=()
   while IFS= read -r line; do
@@ -1067,7 +1074,7 @@ go_to_index() {
   done < <(collect_entries)
 
   if [[ $index -ge ${#entries[@]} ]]; then
-    echo "Error: No entry at index $index" >&2
+    echo "Error: No entry at index $requested" >&2
     echo "" >&2
     echo "Available:" >&2
     list_indexed >&2
@@ -1174,10 +1181,11 @@ case "$1" in
   -v|--version|version)
     echo "wk $VERSION"
     ;;
-  [0-9])
-    go_to_index "$1"
-    ;;
   *)
+    if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+      go_to_index "$1"
+      exit $?
+    fi
     echo "Error: Unknown command '$1'"
     echo ""
     show_help

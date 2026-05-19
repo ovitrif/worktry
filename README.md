@@ -14,7 +14,7 @@
 USAGE:
 wk                              Open interactive setup
 wk <command> [options]
-wk <0-9>                        Quick navigation by index
+wk <index>                      Quick navigation by list index
 
 COMMANDS:
 new, n <name> [options]         Create worktree with setup
@@ -53,14 +53,14 @@ CLONE OPTIONS:
 NAVIGATION:
 wk 0                      Jump to main repo
 wk 1                      Jump to first worktree/clone
-wk 2-9                    Jump to 2nd-9th worktree/clone
+wk <index>                Jump to any listed worktree/clone
 
 FILES:
 .worktreeinclude          Patterns for files to copy (gitignore-style)
 
 ALIAS: worktry
 
-VERSION: 0.3.1
+VERSION: 0.3.2
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -178,6 +178,7 @@ Clones from `origin` as a sibling directory with local agent setup and copied co
 wk 0                      # main repo
 wk 1                      # first worktree/clone
 wk 2                      # second worktree/clone
+wk 11                     # eleventh worktree/clone, if listed
 wk go feature-name        # by branch name
 wk back                   # back to main (alias: b)
 wk ls                     # list everything with indices
@@ -201,7 +202,7 @@ Completions cover commands, aliases, options, branch names for `--src`/`--branch
 | `wk go <name>` | -- | Go to worktree by branch name |
 | `wk back` | `b` | Back to main worktree |
 | `wk config` | -- | Edit .worktreeinclude |
-| `wk 0-9` | -- | Go to worktree/clone by index |
+| `wk <index>` | -- | Go to worktree/clone by list index |
 | `wk --version` | `-v` | Show version |
 | `wk --help` | `-h` | Show help |
 

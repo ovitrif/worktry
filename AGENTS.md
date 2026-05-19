@@ -4,7 +4,7 @@
 
 **wk** (or `worktry`) is a Claude Code companion CLI for managing parallel workspaces using git worktrees or repo clones. It provides:
 
-- Quick navigation between worktrees or clones (`wk 0`, `wk 1`, etc.)
+- Quick navigation between worktrees or clones by list index (`wk 0`, `wk 1`, `wk 11`, etc.)
 - Automatic copying of config files (`.env`, `.idea/`, etc.) via `.worktreeinclude` (gitignore-style patterns)
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Worktree and clone creation with one command (`wk new`, `wk clone`)
@@ -55,7 +55,7 @@ Main bash script containing:
 - `go_to_worktree()` -- navigate by branch name
 - `go_back()` -- navigate to main worktree
 - `collect_entries()` -- find all worktrees and sibling clones (unified, deduplicated)
-- `go_to_index()` -- navigate by numeric index (0-9)
+- `go_to_index()` -- navigate by numeric list index
 - `list_indexed()` -- list all with aligned columns, type labels, current marker
 - `edit_config()` -- open `.worktreeinclude` in editor
 - Case statement routing all commands and aliases

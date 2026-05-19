@@ -26,7 +26,7 @@ cp completions/wk.zsh "$COMPLETION_DIR/wk.zsh"
 # Shell function
 SHELL_FUNC='# wk (worktry) - cd wrapper for navigation commands
 wk() {
-  if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]$ ]]; then
+  if [[ "$1" == "go" || "$1" == "back" || "$1" == "b" || "$1" =~ ^[0-9]+$ ]]; then
     local target
     target=$(command wk "$@")
     if [[ -d "$target" ]]; then
@@ -37,6 +37,49 @@ wk() {
   fi
 }
 alias worktry=wk'
+
+install_or_update_shell_function() {
+  local rc_file="$1"
+
+  if grep -q "# wk (worktry)" "$rc_file" 2>/dev/null; then
+    local tmp_file replacement_file
+    tmp_file=$(mktemp)
+    replacement_file=$(mktemp)
+    printf "%s\n" "$SHELL_FUNC" > "$replacement_file"
+
+    if awk -v replacement_file="$replacement_file" '
+      function print_replacement() {
+        while ((getline line < replacement_file) > 0) {
+          print line
+        }
+        close(replacement_file)
+      }
+
+      /^# wk [(]worktry[)]/ {
+        print_replacement()
+        replacing = 1
+        next
+      }
+      replacing && /^alias worktry=wk$/ {
+        replacing = 0
+        next
+      }
+      !replacing { print }
+    ' "$rc_file" > "$tmp_file"; then
+      mv "$tmp_file" "$rc_file"
+    else
+      rm -f "$tmp_file" "$replacement_file"
+      return 1
+    fi
+
+    rm -f "$replacement_file"
+    echo "✓ Updated wk function in $rc_file"
+  else
+    echo "" >> "$rc_file"
+    echo "$SHELL_FUNC" >> "$rc_file"
+    echo "✓ Added wk function to $rc_file"
+  fi
+}
 
 completion_source_line() {
   local shell_name="$1"
@@ -85,11 +128,13 @@ fi
 # Add shell function if not already present
 if [ -n "$RC_FILE" ]; then
   # Check for wk() or old worktry() function
-  if grep -qE "^(wk|worktry)\(\)" "$RC_FILE" 2>/dev/null || grep -q "# wk (worktry)" "$RC_FILE" 2>/dev/null; then
+  if grep -q "# wk (worktry)" "$RC_FILE" 2>/dev/null; then
+    install_or_update_shell_function "$RC_FILE"
+  elif grep -qE "^(wk|worktry)\(\)" "$RC_FILE" 2>/dev/null; then
     echo "✓ Shell function already exists in $RC_FILE"
   else
     echo ""
-    echo "Navigation commands (wk go/back/0-9) require a shell function."
+    echo "Navigation commands (wk go/back/<index>) require a shell function."
     if [ -t 0 ]; then
       read -p "Add shell function to $RC_FILE? [Y/n] " -n 1 -r
       echo
@@ -98,9 +143,7 @@ if [ -n "$RC_FILE" ]; then
       echo "No interactive stdin; adding shell function to $RC_FILE by default."
     fi
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-      echo "" >> "$RC_FILE"
-      echo "$SHELL_FUNC" >> "$RC_FILE"
-      echo "✓ Added wk function to $RC_FILE"
+      install_or_update_shell_function "$RC_FILE"
       echo "  Run 'source $RC_FILE' or restart your terminal to use navigation commands"
     else
       echo "Skipped. To add manually, append to $RC_FILE:"
