@@ -60,7 +60,7 @@ FILES:
 
 ALIAS: worktry
 
-VERSION: 0.3.4
+VERSION: 0.3.5
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -135,7 +135,7 @@ wk config
 Edit `.worktreeinclude` with gitignore-style patterns (auto-created if missing):
 
 ```
-# Files must ALSO be in .gitignore to be copied
+# Copies untracked files that match these gitignore-style patterns
 .env
 .env.local
 .env.*
@@ -144,7 +144,7 @@ google-services.json
 **/.claude/settings.local.json
 ```
 
-Files must match both `.worktreeinclude` and `.gitignore` to be copied. Patterns are gitignore-style, so a slashless name like `google-services.json` matches files with that basename at any depth. That keeps committed source separate from local agent/session config.
+Files must be untracked and match `.worktreeinclude` to be copied. Patterns use Git's ignore syntax, so slashless names like `google-services.json`, directory names like `.idea`, and globs like `keystore.*` behave like they do in `.gitignore`. Tracked files already come from Git.
 
 ### Create worktrees
 

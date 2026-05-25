@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.4"
+VERSION="0.3.5"
 
 show_help() {
   cat << EOF
@@ -97,7 +97,7 @@ create_worktreeinclude() {
   cat > "$dir/.worktreeinclude" << 'EOF'
 # Files to copy to new worktrees/clones
 # Uses gitignore-style patterns
-# Files must ALSO be in .gitignore to be copied
+# Copies untracked files that match these gitignore-style patterns
 
 # Environment files
 .env
@@ -577,7 +577,7 @@ run_interactive_menu() {
   esac
 }
 
-# Copy files matching BOTH .worktreeinclude AND .gitignore
+# Copy untracked files matching .worktreeinclude patterns.
 copy_worktree_files() {
   local source_dir="$1"
   local target_dir="$2"
@@ -585,52 +585,21 @@ copy_worktree_files() {
 
   [ ! -f "$include_file" ] && return 0
 
-  # Get all ignored files in source directory
-  local ignored_files
-  ignored_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-standard 2>/dev/null)
+  local matched_files
+  matched_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-from="$include_file" 2>/dev/null)
 
-  [ -z "$ignored_files" ] && return 0
+  [ -z "$matched_files" ] && return 0
 
-  # Read patterns from .worktreeinclude
-  while IFS= read -r pattern || [ -n "$pattern" ]; do
-    # Skip comments and empty lines
-    [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
-    [[ -z "${pattern// }" ]] && continue
-    pattern=$(echo "$pattern" | xargs)  # Trim whitespace
+  while IFS= read -r file || [ -n "$file" ]; do
+    [ -z "$file" ] && continue
 
-    # Match pattern against ignored files
-    echo "$ignored_files" | while read -r file; do
-      [ -z "$file" ] && continue
-
-      local matched=false
-
-      # Direct match or wildcard
-      if [[ "$file" == $pattern ]]; then
-        matched=true
-      # Gitignore-style basename pattern (no slash matches at any depth)
-      elif [[ "$pattern" != */* ]] && [[ "$(basename "$file")" == $pattern ]]; then
-        matched=true
-      # Directory pattern (pattern/)
-      elif [[ "$pattern" == */ ]] && [[ "$file" == ${pattern}* ]]; then
-        matched=true
-      # Double-star pattern (**/file)
-      elif [[ "$pattern" == \*\*/* ]]; then
-        local suffix="${pattern#\*\*/}"
-        if [[ "$file" == *"$suffix" ]] || [[ "$file" == "$suffix" ]]; then
-          matched=true
-        fi
-      fi
-
-      if [ "$matched" = true ]; then
-        local src="$source_dir/$file"
-        if [ -e "$src" ]; then
-          mkdir -p "$target_dir/$(dirname "$file")"
-          cp -r "$src" "$target_dir/$file"
-          echo "  Copied: $file"
-        fi
-      fi
-    done
-  done < "$include_file"
+    local src="$source_dir/$file"
+    if [ -e "$src" ]; then
+      mkdir -p "$target_dir/$(dirname "$file")"
+      cp -Rp "$src" "$target_dir/$file"
+      echo "  Copied: $file"
+    fi
+  done <<< "$matched_files"
 }
 
 # Run setup in target directory (Claude permissions + file copying)

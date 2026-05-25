@@ -48,11 +48,13 @@ bash -c "source '$INSTALL_HOME/.local/share/worktry/completions/wk.bash'; comple
 grep -Fq '^[0-9]+$' "$INSTALL_HOME/.zshrc" || fail "zsh shell function was not added for multi-digit indexes"
 grep -Fq 'WK_SHELL_WRAPPER=1' "$INSTALL_HOME/.zshrc" || fail "zsh shell function does not mark wrapper navigation calls"
 grep -q "worktry/completions/wk.zsh" "$INSTALL_HOME/.zshrc" || fail "zsh completion source line not added"
+export PATH="$INSTALL_HOME/.local/bin:$PATH"
 
 cd "$TMPDIR"
 git init test-repo && cd test-repo
 git config user.email "test@test.com"
 git config user.name "Test"
+git config commit.gpgsign false
 echo "SECRET=123" > .env
 mkdir -p app/src/mainnetRelease
 echo '{"project_info":{"project_id":"test"}}' > app/google-services.json
@@ -73,7 +75,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.4" || fail "wk --version did not print 0.3.4"
+wk --version | grep -q "wk 0.3.5" || fail "wk --version did not print 0.3.5"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -87,11 +89,39 @@ test -f .claude/worktrees/test-feature/app/src/mainnetRelease/google-services.js
 git rev-parse --verify test-feature >/dev/null 2>&1 || fail "wk new did not create branch named after directory by default"
 
 echo ""
+echo "=== wk new with gitignore-style .worktreeinclude patterns ==="
+mkdir -p .idea .ai tools/fcm-tester nested app
+echo "<project />" > .idea/workspace.xml
+echo "cache" > .ai/session.json
+echo "KEY=1" > keystore.properties
+echo "binary" > app/internal.keystore
+echo '{"client_email":"test@example.com"}' > tools/fcm-tester/service-account.json
+echo "LOCAL=1" > nested/example.local.json
+cat >> .worktreeinclude <<'EOF'
+
+# Extra gitignore-style pattern coverage
+keystore.*
+*.keystore
+.idea
+.ai
+tools/fcm-tester/service-account.json
+*.local.*
+EOF
+wk new include-patterns --src main
+test -f .claude/worktrees/include-patterns/keystore.properties || fail "keystore.* did not copy root keystore.properties"
+test -f .claude/worktrees/include-patterns/app/internal.keystore || fail "*.keystore did not copy nested keystore"
+test -f .claude/worktrees/include-patterns/.idea/workspace.xml || fail ".idea directory pattern did not copy contents"
+test -f .claude/worktrees/include-patterns/.ai/session.json || fail ".ai directory pattern did not copy contents"
+test -f .claude/worktrees/include-patterns/tools/fcm-tester/service-account.json || fail "nested service-account path was not copied"
+test -f .claude/worktrees/include-patterns/nested/example.local.json || fail "slashless glob did not copy unignored untracked file"
+
+echo ""
 echo "=== wk config (auto-creates .worktreeinclude) ==="
 cd "$TMPDIR"
 git init config-test && cd config-test
 git config user.email "test@test.com"
 git config user.name "Test"
+git config commit.gpgsign false
 git commit --allow-empty -m "init"
 test ! -f .worktreeinclude || fail ".worktreeinclude should not exist yet"
 EDITOR=cat wk config || fail "wk config failed"

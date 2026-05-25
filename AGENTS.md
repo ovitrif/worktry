@@ -50,7 +50,7 @@ Main bash script containing:
 - `run_interactive_worktree_menu()` -- guides common worktree creation flows
 - `run_interactive_clone_menu()` -- guides common clone creation flows
 - `run_interactive_menu()` -- top-level interactive setup menu
-- `copy_worktree_files()` -- copies files matching `.worktreeinclude` and `.gitignore`
+- `copy_worktree_files()` -- copies untracked files matching `.worktreeinclude` gitignore-style patterns
 - `run_setup()` -- creates Claude Code permissions and copies config files
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup
 - `clone_repo()` -- clone repo as sibling or apply setup to existing clone
