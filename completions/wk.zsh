@@ -32,6 +32,7 @@ _wk() {
     'repair:Apply setup to all listed workspaces'
     'hook:Manage worktry git hooks'
     'install-hook:Install worktry git hook'
+    'doctor:Inspect setup issues and suggest repairs'
     'config:Edit .worktreeinclude config'
     '-i:Open interactive setup'
     '--interactive:Open interactive setup'
@@ -87,6 +88,10 @@ _wk() {
     install-hook)
       _arguments \
         '(-d --dir)'{-d,--dir}'[source repo dir to copy setup files from]:source directory:_files -/' && return
+      ;;
+    doctor)
+      _arguments \
+        '(-d --dir)'{-d,--dir}'[source repo dir to inspect]:source directory:_files -/' && return
       ;;
     hook)
       _arguments \

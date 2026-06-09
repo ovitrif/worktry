@@ -10,6 +10,7 @@
 - Worktree and clone creation with one command (`wk new`, `wk clone`)
 - Setup repair for existing worktrees/clones created outside `wk` (`wk setup`, `wk sync`)
 - Optional Git hook installation to auto-setup future worktrees created by plain `git worktree add`
+- Setup diagnostics with actionable repair suggestions (`wk doctor`)
 - Source directory, source branch, target branch, and interactive prompts for creation commands
 
 Worktrees are created at `.claude/worktrees/<name>` under the selected repo directory, the same location Claude Code uses with `claude -w`.
@@ -52,8 +53,10 @@ Main bash script containing:
 - `run_interactive_worktree_menu()` -- guides common worktree creation flows
 - `run_interactive_clone_menu()` -- guides common clone creation flows
 - `run_interactive_menu()` -- top-level interactive setup menu
+- `is_git_internal_path()` -- identifies nested `.git` internals that should not be copied
+- `list_worktreeinclude_directory_files()` -- expands matched directories file-by-file while pruning embedded `.git` directories
+- `list_worktreeinclude_files()` -- lists copied files from `.worktreeinclude` using the same semantics as setup/repair/doctor
 - `copy_one_worktree_file()` -- copies one matched file or symlink, skipping unchanged files and nested Git internals
-- `copy_worktree_directory()` -- expands matched directories file-by-file while pruning embedded `.git` directories
 - `copy_worktree_files()` -- copies untracked files matching `.worktreeinclude` gitignore-style patterns
 - `run_setup()` -- creates Claude Code permissions and copies config files
 - `apply_setup()` -- applies setup from a source repo to a target workspace with optional quiet output
@@ -66,10 +69,16 @@ Main bash script containing:
 - `go_to_worktree()` -- navigate by branch name or list index
 - `go_back()` -- navigate to main worktree
 - `emit_existing_entry()` -- emits only workspace paths that still exist on disk
+- `collect_related_repo_dirs()` -- finds sibling repos/workspace roots that belong to the same repo family
 - `collect_entries()` -- find all worktrees and sibling clones (unified, deduplicated)
 - `get_path_for_index()` -- resolves a numeric list index to a worktree or clone path
 - `go_to_index()` -- navigate by numeric list index
 - `list_indexed()` -- list all with aligned columns, type labels, current marker
+- `shell_quote()` -- safely quotes shell arguments printed in actionable commands
+- `worktry_hook_file()` -- resolves the managed post-checkout hook path
+- `worktry_hook_installed()` -- checks whether the managed hook block exists
+- `list_stale_worktree_records()` -- lists missing worktree paths still known to Git
+- `doctor_workspaces()` -- reports setup irregularities and suggested repair commands
 - `edit_config()` -- open `.worktreeinclude` in editor
 - Case statement routing all commands and aliases
 

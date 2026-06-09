@@ -13,7 +13,7 @@ _wk_worktree_branches() {
 
 _wk_complete() {
   local cur prev command
-  local commands="new n clone c list ls l go back b setup sync repair hook install-hook config -i --interactive -h --help -v --version version 0 1 2 3 4 5 6 7 8 9"
+  local commands="new n clone c list ls l go back b setup sync repair hook install-hook doctor config -i --interactive -h --help -v --version version 0 1 2 3 4 5 6 7 8 9"
   local new_options="-d --dir -s --src -b --branch --name -n -i --interactive"
   local clone_options="-d --dir -s --src -b --branch --name -n -m --manual -i --interactive"
   local setup_options="-d --dir -q --quiet"
@@ -51,7 +51,7 @@ _wk_complete() {
     setup|sync|repair)
       COMPREPLY=($(compgen -W "$setup_options" -- "$cur"))
       ;;
-    install-hook)
+    install-hook|doctor)
       COMPREPLY=($(compgen -W "$hook_options" -- "$cur"))
       ;;
     hook)

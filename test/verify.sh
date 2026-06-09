@@ -71,11 +71,13 @@ wk --help | grep -q "config                          Edit" || fail "wk --help sh
 wk --help | grep -q "wk                              Open interactive setup" || fail "wk --help missing interactive usage"
 wk --help | grep -q "wk new <name> \\[--dir <source-dir>\\]" || fail "wk --help missing new example"
 wk --help | grep -q "wk clone \\[<name>\\] \\[--dir <source-dir>\\]" || fail "wk --help missing clone example"
+wk --help | grep -q "doctor \\[options\\]" || fail "wk --help missing doctor command"
+wk --help | grep -q "wk doctor \\[--dir <source-dir>\\]" || fail "wk --help missing doctor example"
 wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fail "wk --help missing interactive quit hint"
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.4.0" || fail "wk --version did not print 0.4.0"
+wk --version | grep -q "wk 0.5.0" || fail "wk --version did not print 0.5.0"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -136,17 +138,32 @@ test -f "$TMPDIR/external-sync/.claude/settings.local.json" || fail "wk sync did
 test -f "$TMPDIR/external-sync/tools/fcm-tester/service-account.json" || fail "wk sync did not copy nested include path"
 
 echo ""
+echo "=== wk doctor reports irregularities ==="
+rm "$TMPDIR/external-sync/keystore.properties"
+doctor_output=$(wk doctor --dir "$TMPDIR/test-repo" 2>&1 || true)
+echo "$doctor_output" | grep -q "Incomplete setup" || fail "wk doctor did not report incomplete setup"
+echo "$doctor_output" | grep -q "wk repair --dir" || fail "wk doctor did not suggest repair"
+echo "$doctor_output" | grep -q "wk hook install --dir" || fail "wk doctor did not suggest hook install"
+wk repair --dir "$TMPDIR/test-repo"
+test -f "$TMPDIR/external-sync/keystore.properties" || fail "wk repair did not fix doctor-reported missing file"
+
+echo ""
 echo "=== wk hook install ==="
 wk hook install --dir "$TMPDIR/test-repo"
 git worktree add "$TMPDIR/external-hook" -b external-hook main
 test -f "$TMPDIR/external-hook/.claude/settings.local.json" || fail "wk hook did not create Claude settings in git-created worktree"
 test -f "$TMPDIR/external-hook/app/internal.keystore" || fail "wk hook did not copy glob-matched file"
+doctor_clean=$(wk doctor --dir "$TMPDIR/test-repo") || fail "wk doctor should pass after repair and hook install"
+echo "$doctor_clean" | grep -q "No irregularities found." || fail "wk doctor did not report clean state"
 
 echo ""
 echo "=== wk ls skips stale worktree records ==="
 git worktree add "$TMPDIR/stale-worktree" -b stale-worktree main
 rm -rf "$TMPDIR/stale-worktree"
 wk ls | grep -q "$TMPDIR/stale-worktree" && fail "wk ls should skip missing stale worktree paths"
+doctor_stale=$(wk doctor --dir "$TMPDIR/test-repo" 2>&1 || true)
+echo "$doctor_stale" | grep -q "Stale worktree record" || fail "wk doctor did not report stale worktree records"
+echo "$doctor_stale" | grep -q "worktree prune" || fail "wk doctor did not suggest git worktree prune"
 
 echo ""
 echo "=== wk config (auto-creates .worktreeinclude) ==="

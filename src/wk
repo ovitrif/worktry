@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.4.0"
+VERSION="0.5.0"
 
 show_help() {
   cat << EOF
@@ -29,6 +29,7 @@ back, b                         Back to main worktree
 setup [dir] [options]           Apply setup to an existing worktree/clone
 sync [options]                  Apply setup to all listed workspaces
 hook install [options]          Auto-setup future git-created worktrees
+doctor [options]                Inspect setup issues and suggest repairs
 config                          Edit .worktreeinclude config
 -i, --interactive               Open interactive setup
 -h, --help                      Show this help
@@ -41,6 +42,7 @@ wk clone --manual <existing-clone-dir>
 wk setup <existing-worktree-dir> [--dir <source-dir>]
 wk sync [--dir <source-dir>]
 wk hook install [--dir <source-dir>]
+wk doctor [--dir <source-dir>]
 
 INTERACTIVE:
 Use Up/Down then Enter, or type a number.
@@ -62,6 +64,9 @@ CLONE OPTIONS:
 SETUP/SYNC OPTIONS:
 -d, --dir <dir>                 Source repo dir to copy setup files from
 -q, --quiet                     Suppress setup output
+
+DOCTOR OPTIONS:
+-d, --dir <dir>                 Source repo dir to inspect
 
 NAVIGATION:
 wk 0                      Jump to main repo
@@ -588,16 +593,60 @@ run_interactive_menu() {
 }
 
 # Copy untracked files matching .worktreeinclude patterns.
+is_git_internal_path() {
+  case "$1" in
+    .git|.git/*|*/.git|*/.git/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+list_worktreeinclude_directory_files() {
+  local source_dir="$1"
+  local dir="$2"
+  local src_dir="$source_dir/${dir%/}"
+
+  [ ! -d "$src_dir" ] && return 0
+
+  while IFS= read -r nested_src; do
+    local nested_file="${nested_src#$source_dir/}"
+    is_git_internal_path "$nested_file" && continue
+    printf "%s\n" "$nested_file"
+  done < <(find "$src_dir" -type d -name .git -prune -o \( -type f -o -type l \) -print)
+}
+
+list_worktreeinclude_files() {
+  local source_dir="$1"
+  local include_file="$source_dir/.worktreeinclude"
+
+  [ ! -f "$include_file" ] && return 0
+
+  local matched_files
+  matched_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-from="$include_file" 2>/dev/null)
+
+  [ -z "$matched_files" ] && return 0
+
+  while IFS= read -r file || [ -n "$file" ]; do
+    [ -z "$file" ] && continue
+    is_git_internal_path "$file" && continue
+
+    local src="$source_dir/$file"
+    if [ -d "$src" ] && [ ! -L "$src" ]; then
+      list_worktreeinclude_directory_files "$source_dir" "$file"
+    elif [ -e "$src" ] || [ -L "$src" ]; then
+      printf "%s\n" "$file"
+    fi
+  done <<< "$matched_files" | awk '!seen[$0]++'
+}
+
 copy_one_worktree_file() {
   local source_dir="$1"
   local target_dir="$2"
   local file="$3"
 
-  case "$file" in
-    .git|.git/*|*/.git|*/.git/*)
-      return 0
-      ;;
-  esac
+  is_git_internal_path "$file" && return 0
 
   local src="$source_dir/$file"
   local dest="$target_dir/$file"
@@ -616,20 +665,6 @@ copy_one_worktree_file() {
   fi
 }
 
-copy_worktree_directory() {
-  local source_dir="$1"
-  local target_dir="$2"
-  local dir="$3"
-  local src_dir="$source_dir/${dir%/}"
-
-  [ ! -d "$src_dir" ] && return 0
-
-  while IFS= read -r nested_src; do
-    local nested_file="${nested_src#$source_dir/}"
-    copy_one_worktree_file "$source_dir" "$target_dir" "$nested_file"
-  done < <(find "$src_dir" -type d -name .git -prune -o \( -type f -o -type l \) -print)
-}
-
 copy_worktree_files() {
   local source_dir="$1"
   local target_dir="$2"
@@ -645,21 +680,10 @@ copy_worktree_files() {
     return 0
   fi
 
-  local matched_files
-  matched_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-from="$include_file" 2>/dev/null)
-
-  [ -z "$matched_files" ] && return 0
-
   while IFS= read -r file || [ -n "$file" ]; do
     [ -z "$file" ] && continue
-
-    local src="$source_dir/$file"
-    if [ -d "$src" ] && [ ! -L "$src" ]; then
-      copy_worktree_directory "$source_dir" "$target_dir" "$file"
-    else
-      copy_one_worktree_file "$source_dir" "$target_dir" "$file"
-    fi
-  done <<< "$matched_files"
+    copy_one_worktree_file "$source_dir" "$target_dir" "$file"
+  done < <(list_worktreeinclude_files "$source_dir")
 }
 
 # Run setup in target directory (Claude permissions + file copying)
@@ -1314,22 +1338,33 @@ emit_existing_entry() {
   echo "$path|$type"
 }
 
-collect_entries() {
+collect_related_repo_dirs() {
+  local source_dir="${1:-$PWD}"
   local main_path
-  main_path=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
-  [ -z "$main_path" ] && main_path=$(pwd)
+  main_path=$(git -C "$source_dir" worktree list 2>/dev/null | head -1 | awk '{print $1}')
+  [ -z "$main_path" ] && main_path="$source_dir"
 
-  local parent_dir base_name
+  local parent_dir base_name found=false
   parent_dir=$(dirname "$main_path")
   base_name=$(basename "$main_path" | sed -E 's/[-.]?[0-9]+$//' | sed -E 's/\.[^.]+$//')
 
-  # Find all sibling repos sharing the base name
-  local siblings=()
   while IFS= read -r dir; do
     if [[ -d "$dir/.git" || -f "$dir/.git" ]]; then
-      siblings+=("$dir")
+      found=true
+      echo "$dir"
     fi
   done < <(find "$parent_dir" -maxdepth 1 -type d -name "${base_name}*" 2>/dev/null | sort)
+
+  if [ "$found" = false ]; then
+    echo "$source_dir"
+  fi
+}
+
+collect_entries() {
+  local siblings=()
+  while IFS= read -r dir; do
+    siblings+=("$dir")
+  done < <(collect_related_repo_dirs "$PWD")
 
   # Fallback: no siblings found, list current repo's worktrees
   if [[ ${#siblings[@]} -eq 0 ]]; then
@@ -1437,6 +1472,193 @@ list_indexed() {
   done
 }
 
+shell_quote() {
+  printf "%q" "$1"
+}
+
+worktry_hook_file() {
+  local source_dir="$1"
+  local git_common
+  git_common=$(git -C "$source_dir" rev-parse --git-common-dir 2>/dev/null)
+  [ -z "$git_common" ] && return 1
+
+  if [[ "$git_common" != /* ]]; then
+    git_common="$source_dir/$git_common"
+  fi
+
+  echo "$git_common/hooks/post-checkout"
+}
+
+worktry_hook_installed() {
+  local source_dir="$1"
+  local hook_file
+  hook_file=$(worktry_hook_file "$source_dir") || return 1
+
+  [ -f "$hook_file" ] && grep -q "^# >>> worktry hook$" "$hook_file" 2>/dev/null
+}
+
+list_stale_worktree_records() {
+  local source_dir="$1"
+
+  while IFS= read -r repo_dir; do
+    [ -z "$repo_dir" ] && continue
+
+    git -C "$repo_dir" worktree list 2>/dev/null | while IFS= read -r line; do
+      local worktree_path
+      worktree_path=$(echo "$line" | awk '{print $1}')
+      [ -z "$worktree_path" ] && continue
+      [ -d "$worktree_path" ] && continue
+      echo "$repo_dir|$worktree_path"
+    done
+  done < <(collect_related_repo_dirs "$source_dir")
+}
+
+doctor_workspaces() {
+  local source_arg=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source directory." >&2
+          echo "Usage: wk doctor [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        source_arg="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Usage: wk doctor [--dir <source-dir>]"
+        return
+        ;;
+      *)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk doctor [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  local source_dir source_real source_q issues=0
+  local repair_needed=false hook_needed=false prune_needed=false
+  local included_files="" stale_records="" stale_prune_repos=""
+
+  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
+  source_real=$(cd "$source_dir" && pwd -P)
+  source_q=$(shell_quote "$source_dir")
+
+  echo "wk doctor"
+  echo "Source: $source_dir"
+  echo ""
+
+  if [ ! -f "$source_dir/.worktreeinclude" ]; then
+    issues=$((issues + 1))
+    repair_needed=true
+    echo "$issues. Missing .worktreeinclude"
+    echo "   No include config exists in the source repo."
+    echo "   Action: wk repair --dir $source_q"
+    echo ""
+  else
+    included_files=$(list_worktreeinclude_files "$source_dir")
+  fi
+
+  if ! worktry_hook_installed "$source_dir"; then
+    issues=$((issues + 1))
+    hook_needed=true
+    echo "$issues. Worktree hook is not installed"
+    echo "   Future plain git-created worktrees will not auto-run setup."
+    echo "   Action: wk hook install --dir $source_q"
+    echo ""
+  fi
+
+  stale_records=$(list_stale_worktree_records "$source_dir")
+  if [ -n "$stale_records" ]; then
+    issues=$((issues + 1))
+    prune_needed=true
+    stale_prune_repos=$(printf "%s\n" "$stale_records" | awk -F'|' '!seen[$1]++ {print $1}')
+    echo "$issues. Stale worktree record(s)"
+    while IFS='|' read -r repo_dir worktree_path; do
+      [ -z "$repo_dir" ] && continue
+      echo "   $worktree_path"
+      echo "   Action: git -C $(shell_quote "$repo_dir") worktree prune"
+    done <<< "$stale_records"
+    echo ""
+  fi
+
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+
+    local target="${line%|*}"
+    local type="${line##*|}"
+    local target_real
+    target_real=$(cd "$target" 2>/dev/null && pwd -P)
+    [ -z "$target_real" ] && continue
+    [ "$target_real" = "$source_real" ] && continue
+
+    local missing_settings=false
+    local missing_count=0
+    local missing_samples=""
+
+    if [ ! -f "$target/.claude/settings.local.json" ]; then
+      missing_settings=true
+    fi
+
+    if [ -n "$included_files" ]; then
+      while IFS= read -r file || [ -n "$file" ]; do
+        [ -z "$file" ] && continue
+        if [ ! -e "$target/$file" ] && [ ! -L "$target/$file" ]; then
+          missing_count=$((missing_count + 1))
+          if [ "$missing_count" -le 5 ]; then
+            if [ -z "$missing_samples" ]; then
+              missing_samples="$file"
+            else
+              missing_samples="$missing_samples, $file"
+            fi
+          fi
+        fi
+      done <<< "$included_files"
+    fi
+
+    if [ "$missing_settings" = true ] || [ "$missing_count" -gt 0 ]; then
+      issues=$((issues + 1))
+      repair_needed=true
+      echo "$issues. Incomplete setup in $target [$type]"
+      if [ "$missing_settings" = true ]; then
+        echo "   Missing: .claude/settings.local.json"
+      fi
+      if [ "$missing_count" -gt 0 ]; then
+        echo "   Missing $missing_count included file(s): $missing_samples"
+        if [ "$missing_count" -gt 5 ]; then
+          echo "   ...and $((missing_count - 5)) more"
+        fi
+      fi
+      echo "   Action: wk setup $(shell_quote "$target") --dir $source_q"
+      echo ""
+    fi
+  done < <(cd "$source_dir" && collect_entries)
+
+  if [ "$issues" -eq 0 ]; then
+    echo "No irregularities found."
+    return 0
+  fi
+
+  echo "Suggested fixes:"
+  if [ "$repair_needed" = true ]; then
+    echo "  wk repair --dir $source_q"
+  fi
+  if [ "$hook_needed" = true ]; then
+    echo "  wk hook install --dir $source_q"
+  fi
+  if [ "$prune_needed" = true ]; then
+    while IFS= read -r repo_dir; do
+      [ -z "$repo_dir" ] && continue
+      echo "  git -C $(shell_quote "$repo_dir") worktree prune"
+    done <<< "$stale_prune_repos"
+  fi
+
+  return 1
+}
+
 # Edit .worktreeinclude config file
 edit_config() {
   ensure_worktreeinclude
@@ -1494,6 +1716,10 @@ case "$1" in
   install-hook)
     shift
     install_worktree_hook "$@"
+    ;;
+  doctor)
+    shift
+    doctor_workspaces "$@"
     ;;
   config)
     edit_config

@@ -26,6 +26,7 @@ back, b                         Back to main worktree
 setup [dir] [options]           Apply setup to an existing worktree/clone
 sync [options]                  Apply setup to all listed workspaces
 hook install [options]          Auto-setup future git-created worktrees
+doctor [options]                Inspect setup issues and suggest repairs
 config                          Edit .worktreeinclude config
 -i, --interactive               Open interactive setup
 -h, --help                      Show this help
@@ -38,6 +39,7 @@ wk clone --manual <existing-clone-dir>
 wk setup <existing-worktree-dir> [--dir <source-dir>]
 wk sync [--dir <source-dir>]
 wk hook install [--dir <source-dir>]
+wk doctor [--dir <source-dir>]
 
 INTERACTIVE:
 Use Up/Down then Enter, or type a number.
@@ -60,6 +62,9 @@ SETUP/SYNC OPTIONS:
 -d, --dir <dir>                 Source repo dir to copy setup files from
 -q, --quiet                     Suppress setup output
 
+DOCTOR OPTIONS:
+-d, --dir <dir>                 Source repo dir to inspect
+
 NAVIGATION:
 wk 0                      Jump to main repo
 wk 1                      Jump to first worktree/clone
@@ -70,7 +75,7 @@ FILES:
 
 ALIAS: worktry
 
-VERSION: 0.4.0
+VERSION: 0.5.0
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -188,9 +193,12 @@ Clones from `origin` as a sibling directory with local agent setup and copied co
 wk setup /tmp/codex-worktree --dir ~/repo
 wk sync --dir ~/repo
 wk hook install --dir ~/repo
+wk doctor --dir ~/repo
 ```
 
 `wk setup` applies Claude permissions and `.worktreeinclude` copies to one existing worktree or clone, even if another tool created it in `/tmp` or another custom path. `wk sync` applies the same setup to every workspace shown by `wk ls`. `wk hook install` adds a Git `post-checkout` hook to the source repo so future `git worktree add` calls, including worktrees created outside `wk`, get setup automatically.
+
+`wk doctor` checks for missing `.worktreeinclude`, missing local setup files, missing Claude permissions, stale worktree records, and missing Git hook setup. It prints concrete actions for each issue and ends with a short suggested fix block, usually `wk repair --dir <source-dir>` and/or `wk hook install --dir <source-dir>`.
 
 ### Navigate
 
@@ -225,6 +233,7 @@ Completions cover commands, aliases, options, branch names for `--src`/`--branch
 | `wk setup [dir] [--dir <source-dir>]` | -- | Apply setup to an existing worktree/clone |
 | `wk sync [--dir <source-dir>]` | `repair` | Apply setup to all listed workspaces |
 | `wk hook install [--dir <source-dir>]` | `install-hook` | Auto-setup future git-created worktrees |
+| `wk doctor [--dir <source-dir>]` | -- | Inspect setup issues and suggest repairs |
 | `wk config` | -- | Edit .worktreeinclude |
 | `wk <index>` | -- | Go to worktree/clone by list index |
 | `wk --version` | `-v` | Show version |
