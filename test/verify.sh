@@ -77,7 +77,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.5.0" || fail "wk --version did not print 0.5.0"
+wk --version | grep -q "wk 0.5.1" || fail "wk --version did not print 0.5.1"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -129,13 +129,16 @@ wk setup "$TMPDIR/external-setup" --dir "$TMPDIR/test-repo"
 test -f "$TMPDIR/external-setup/.claude/settings.local.json" || fail "wk setup did not create Claude settings in external worktree"
 test -f "$TMPDIR/external-setup/keystore.properties" || fail "wk setup did not copy keystore.* to external worktree"
 test -f "$TMPDIR/external-setup/.idea/workspace.xml" || fail "wk setup did not copy directory pattern to external worktree"
+grep -q "^# >>> worktry hook$" "$TMPDIR/test-repo/.git/hooks/post-checkout" || fail "wk setup did not install worktry hook"
 
 echo ""
 echo "=== wk sync external worktree ==="
+rm "$TMPDIR/test-repo/.git/hooks/post-checkout"
 git worktree add "$TMPDIR/external-sync" -b external-sync main
 wk sync --dir "$TMPDIR/test-repo"
 test -f "$TMPDIR/external-sync/.claude/settings.local.json" || fail "wk sync did not create Claude settings in external worktree"
 test -f "$TMPDIR/external-sync/tools/fcm-tester/service-account.json" || fail "wk sync did not copy nested include path"
+grep -q "^# >>> worktry hook$" "$TMPDIR/test-repo/.git/hooks/post-checkout" || fail "wk sync did not install worktry hook"
 
 echo ""
 echo "=== wk doctor reports irregularities ==="
@@ -143,7 +146,6 @@ rm "$TMPDIR/external-sync/keystore.properties"
 doctor_output=$(wk doctor --dir "$TMPDIR/test-repo" 2>&1 || true)
 echo "$doctor_output" | grep -q "Incomplete setup" || fail "wk doctor did not report incomplete setup"
 echo "$doctor_output" | grep -q "wk repair --dir" || fail "wk doctor did not suggest repair"
-echo "$doctor_output" | grep -q "wk hook install --dir" || fail "wk doctor did not suggest hook install"
 wk repair --dir "$TMPDIR/test-repo"
 test -f "$TMPDIR/external-sync/keystore.properties" || fail "wk repair did not fix doctor-reported missing file"
 

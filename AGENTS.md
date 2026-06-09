@@ -59,10 +59,11 @@ Main bash script containing:
 - `copy_one_worktree_file()` -- copies one matched file or symlink, skipping unchanged files and nested Git internals
 - `copy_worktree_files()` -- copies untracked files matching `.worktreeinclude` gitignore-style patterns
 - `run_setup()` -- creates Claude Code permissions and copies config files
-- `apply_setup()` -- applies setup from a source repo to a target workspace with optional quiet output
-- `setup_workspace()` -- applies setup to one existing worktree or clone
-- `sync_workspaces()` -- applies setup to all listed workspaces
+- `apply_setup()` -- applies setup from a source repo to a target workspace, optionally refreshing the worktree hook
+- `setup_workspace()` -- applies setup to one existing worktree or clone and refreshes the worktree hook
+- `sync_workspaces()` -- applies setup to all listed workspaces and refreshes the worktree hook
 - `resolve_wk_bin()` -- resolves the current `wk` executable for generated hooks
+- `write_worktree_hook()` -- writes or updates the managed Git post-checkout hook
 - `install_worktree_hook()` -- installs or updates the managed Git post-checkout hook
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup
 - `clone_repo()` -- clone repo as sibling or apply setup to existing clone

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.5.0"
+VERSION="0.5.1"
 
 show_help() {
   cat << EOF
@@ -726,14 +726,21 @@ apply_setup() {
   local source_dir="$1"
   local target_dir="$2"
   local quiet="${3:-false}"
+  local install_hook="${4:-false}"
 
   if [ "$quiet" = true ]; then
     ensure_worktreeinclude "$source_dir" >/dev/null
     run_setup "$source_dir" "$target_dir" >/dev/null
+    if [ "$install_hook" = true ]; then
+      write_worktree_hook "$source_dir" true >/dev/null
+    fi
   else
     echo "Applying setup from '$source_dir' to '$target_dir'..."
     ensure_worktreeinclude "$source_dir"
     run_setup "$source_dir" "$target_dir"
+    if [ "$install_hook" = true ]; then
+      write_worktree_hook "$source_dir" false
+    fi
     echo "Done"
   fi
 }
@@ -788,7 +795,7 @@ setup_workspace() {
   source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
   target_dir=$(resolve_repo_dir "${target_arg:-$PWD}")
 
-  apply_setup "$source_dir" "$target_dir" "$quiet"
+  apply_setup "$source_dir" "$target_dir" "$quiet" true
 }
 
 sync_workspaces() {
@@ -826,6 +833,14 @@ sync_workspaces() {
   source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
   source_real=$(cd "$source_dir" && pwd -P)
 
+  if [ "$quiet" = true ]; then
+    ensure_worktreeinclude "$source_dir" >/dev/null
+    write_worktree_hook "$source_dir" true >/dev/null
+  else
+    ensure_worktreeinclude "$source_dir"
+    write_worktree_hook "$source_dir" false
+  fi
+
   while IFS= read -r line; do
     [ -z "$line" ] && continue
 
@@ -860,35 +875,10 @@ resolve_wk_bin() {
   echo "$HOME/.local/bin/wk"
 }
 
-install_worktree_hook() {
-  local source_arg=""
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --dir|-d)
-        if [ $# -lt 2 ]; then
-          echo "Error: $1 requires a source directory." >&2
-          echo "Usage: wk hook install [--dir <source-dir>]" >&2
-          exit 1
-        fi
-        source_arg="$2"
-        shift 2
-        ;;
-      -h|--help)
-        echo "Usage: wk hook install [--dir <source-dir>]"
-        return
-        ;;
-      *)
-        echo "Error: Unknown argument '$1'" >&2
-        echo "Usage: wk hook install [--dir <source-dir>]" >&2
-        exit 1
-        ;;
-    esac
-  done
-
-  local source_dir git_common hooks_dir hook_file wk_bin hook_block
-  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
-  ensure_worktreeinclude "$source_dir"
+write_worktree_hook() {
+  local source_dir="$1"
+  local quiet="${2:-false}"
+  local git_common hooks_dir hook_file wk_bin hook_block
 
   git_common=$(git -C "$source_dir" rev-parse --git-common-dir 2>/dev/null)
   if [[ "$git_common" != /* ]]; then
@@ -954,7 +944,41 @@ EOF
   fi
 
   chmod +x "$hook_file"
-  echo "Installed worktry post-checkout hook at $hook_file"
+  if [ "$quiet" != true ]; then
+    echo "Installed worktry post-checkout hook at $hook_file"
+  fi
+}
+
+install_worktree_hook() {
+  local source_arg=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source directory." >&2
+          echo "Usage: wk hook install [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        source_arg="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Usage: wk hook install [--dir <source-dir>]"
+        return
+        ;;
+      *)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk hook install [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  local source_dir
+  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
+  ensure_worktreeinclude "$source_dir"
+  write_worktree_hook "$source_dir" false
 }
 
 create_worktree() {

@@ -75,7 +75,7 @@ FILES:
 
 ALIAS: worktry
 
-VERSION: 0.5.0
+VERSION: 0.5.1
 ```
 
 Run parallel AI agent sessions using git worktrees or sibling clones.
@@ -196,7 +196,7 @@ wk hook install --dir ~/repo
 wk doctor --dir ~/repo
 ```
 
-`wk setup` applies Claude permissions and `.worktreeinclude` copies to one existing worktree or clone, even if another tool created it in `/tmp` or another custom path. `wk sync` applies the same setup to every workspace shown by `wk ls`. `wk hook install` adds a Git `post-checkout` hook to the source repo so future `git worktree add` calls, including worktrees created outside `wk`, get setup automatically.
+`wk setup` applies Claude permissions and `.worktreeinclude` copies to one existing worktree or clone, even if another tool created it in `/tmp` or another custom path. It also installs or updates the source repo's Git `post-checkout` hook so future plain `git worktree add` calls get setup automatically. `wk sync` applies setup to every workspace shown by `wk ls` and also refreshes the hook. `wk hook install` keeps the hook available as a direct command when that is the only thing you want to fix.
 
 `wk doctor` checks for missing `.worktreeinclude`, missing local setup files, missing Claude permissions, stale worktree records, and missing Git hook setup. It prints concrete actions for each issue and ends with a short suggested fix block, usually `wk repair --dir <source-dir>` and/or `wk hook install --dir <source-dir>`.
 
