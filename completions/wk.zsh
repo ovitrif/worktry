@@ -24,9 +24,14 @@ _wk() {
     'list:List all worktrees and clones'
     'ls:List all worktrees and clones'
     'l:List all worktrees and clones'
-    'go:Go to worktree by branch name'
+    'go:Go to worktree by branch name or index'
     'back:Back to main worktree'
     'b:Back to main worktree'
+    'setup:Apply setup to an existing worktree or clone'
+    'sync:Apply setup to all listed workspaces'
+    'repair:Apply setup to all listed workspaces'
+    'hook:Manage worktry git hooks'
+    'install-hook:Install worktry git hook'
     'config:Edit .worktreeinclude config'
     '-i:Open interactive setup'
     '--interactive:Open interactive setup'
@@ -72,6 +77,21 @@ _wk() {
         '(-m --manual)'{-m,--manual}'[apply setup to existing clone]:existing clone directory:_files -/' \
         '(-i --interactive)'{-i,--interactive}'[prompt for clone options]' \
         '*:clone name: ' && return
+      ;;
+    setup|sync|repair)
+      _arguments \
+        '(-d --dir)'{-d,--dir}'[source repo dir to copy setup files from]:source directory:_files -/' \
+        '(-q --quiet)'{-q,--quiet}'[suppress setup output]' \
+        '*:target directory:_files -/' && return
+      ;;
+    install-hook)
+      _arguments \
+        '(-d --dir)'{-d,--dir}'[source repo dir to copy setup files from]:source directory:_files -/' && return
+      ;;
+    hook)
+      _arguments \
+        '1:hook command:(install)' \
+        '(-d --dir)'{-d,--dir}'[source repo dir to copy setup files from]:source directory:_files -/' && return
       ;;
     go)
       _describe -t worktrees 'worktree branch' worktree_branches

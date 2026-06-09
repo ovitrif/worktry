@@ -75,7 +75,7 @@ wk --help | grep -q "Press Ctrl+C to quit, or press Esc twice to cancel." || fai
 
 echo ""
 echo "=== wk --version ==="
-wk --version | grep -q "wk 0.3.5" || fail "wk --version did not print 0.3.5"
+wk --version | grep -q "wk 0.4.0" || fail "wk --version did not print 0.4.0"
 
 echo ""
 echo "=== wk new (no init needed) ==="
@@ -91,8 +91,11 @@ git rev-parse --verify test-feature >/dev/null 2>&1 || fail "wk new did not crea
 echo ""
 echo "=== wk new with gitignore-style .worktreeinclude patterns ==="
 mkdir -p .idea .ai tools/fcm-tester nested app
+mkdir -p .ai/upstream/connect/.git/objects/pack
 echo "<project />" > .idea/workspace.xml
 echo "cache" > .ai/session.json
+echo "nested repo content" > .ai/upstream/connect/README.md
+echo "pack internals" > .ai/upstream/connect/.git/objects/pack/pack-test.pack
 echo "KEY=1" > keystore.properties
 echo "binary" > app/internal.keystore
 echo '{"client_email":"test@example.com"}' > tools/fcm-tester/service-account.json
@@ -112,8 +115,38 @@ test -f .claude/worktrees/include-patterns/keystore.properties || fail "keystore
 test -f .claude/worktrees/include-patterns/app/internal.keystore || fail "*.keystore did not copy nested keystore"
 test -f .claude/worktrees/include-patterns/.idea/workspace.xml || fail ".idea directory pattern did not copy contents"
 test -f .claude/worktrees/include-patterns/.ai/session.json || fail ".ai directory pattern did not copy contents"
+test -f .claude/worktrees/include-patterns/.ai/upstream/connect/README.md || fail ".ai embedded repo content was not copied"
+test ! -e .claude/worktrees/include-patterns/.ai/upstream/connect/.git/objects/pack/pack-test.pack || fail ".ai embedded repo .git internals should not be copied"
 test -f .claude/worktrees/include-patterns/tools/fcm-tester/service-account.json || fail "nested service-account path was not copied"
 test -f .claude/worktrees/include-patterns/nested/example.local.json || fail "slashless glob did not copy unignored untracked file"
+
+echo ""
+echo "=== wk setup external worktree ==="
+git worktree add "$TMPDIR/external-setup" -b external-setup main
+wk setup "$TMPDIR/external-setup" --dir "$TMPDIR/test-repo"
+test -f "$TMPDIR/external-setup/.claude/settings.local.json" || fail "wk setup did not create Claude settings in external worktree"
+test -f "$TMPDIR/external-setup/keystore.properties" || fail "wk setup did not copy keystore.* to external worktree"
+test -f "$TMPDIR/external-setup/.idea/workspace.xml" || fail "wk setup did not copy directory pattern to external worktree"
+
+echo ""
+echo "=== wk sync external worktree ==="
+git worktree add "$TMPDIR/external-sync" -b external-sync main
+wk sync --dir "$TMPDIR/test-repo"
+test -f "$TMPDIR/external-sync/.claude/settings.local.json" || fail "wk sync did not create Claude settings in external worktree"
+test -f "$TMPDIR/external-sync/tools/fcm-tester/service-account.json" || fail "wk sync did not copy nested include path"
+
+echo ""
+echo "=== wk hook install ==="
+wk hook install --dir "$TMPDIR/test-repo"
+git worktree add "$TMPDIR/external-hook" -b external-hook main
+test -f "$TMPDIR/external-hook/.claude/settings.local.json" || fail "wk hook did not create Claude settings in git-created worktree"
+test -f "$TMPDIR/external-hook/app/internal.keystore" || fail "wk hook did not copy glob-matched file"
+
+echo ""
+echo "=== wk ls skips stale worktree records ==="
+git worktree add "$TMPDIR/stale-worktree" -b stale-worktree main
+rm -rf "$TMPDIR/stale-worktree"
+wk ls | grep -q "$TMPDIR/stale-worktree" && fail "wk ls should skip missing stale worktree paths"
 
 echo ""
 echo "=== wk config (auto-creates .worktreeinclude) ==="

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.5"
+VERSION="0.4.0"
 
 show_help() {
   cat << EOF
@@ -26,6 +26,9 @@ clone -m <dir>                  Apply setup to existing clone
 list, ls, l                     List all worktrees and clones
 go <name|index>                 Go to worktree by branch name or list index
 back, b                         Back to main worktree
+setup [dir] [options]           Apply setup to an existing worktree/clone
+sync [options]                  Apply setup to all listed workspaces
+hook install [options]          Auto-setup future git-created worktrees
 config                          Edit .worktreeinclude config
 -i, --interactive               Open interactive setup
 -h, --help                      Show this help
@@ -35,6 +38,9 @@ EXAMPLES:
 wk new <name> [--dir <source-dir>] [--src <source-branch>] [--branch <branch>] [--interactive]
 wk clone [<name>] [--dir <source-dir>] [--src <source-branch>] [--branch <branch>] [--interactive]
 wk clone --manual <existing-clone-dir>
+wk setup <existing-worktree-dir> [--dir <source-dir>]
+wk sync [--dir <source-dir>]
+wk hook install [--dir <source-dir>]
 
 INTERACTIVE:
 Use Up/Down then Enter, or type a number.
@@ -52,6 +58,10 @@ CLONE OPTIONS:
 -b, --branch <branch>           Branch to create or check out (default: --src)
 -m, --manual <dir>              Apply setup to existing clone
 -i, --interactive               Prompt for clone options
+
+SETUP/SYNC OPTIONS:
+-d, --dir <dir>                 Source repo dir to copy setup files from
+-q, --quiet                     Suppress setup output
 
 NAVIGATION:
 wk 0                      Jump to main repo
@@ -578,12 +588,62 @@ run_interactive_menu() {
 }
 
 # Copy untracked files matching .worktreeinclude patterns.
+copy_one_worktree_file() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local file="$3"
+
+  case "$file" in
+    .git|.git/*|*/.git|*/.git/*)
+      return 0
+      ;;
+  esac
+
+  local src="$source_dir/$file"
+  local dest="$target_dir/$file"
+
+  [ ! -e "$src" ] && [ ! -L "$src" ] && return 0
+
+  mkdir -p "$target_dir/$(dirname "$file")"
+  if [ -f "$src" ] && [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+    return 0
+  fi
+
+  if cp -pP "$src" "$dest"; then
+    echo "  Copied: $file"
+  else
+    echo "  Warning: Could not copy $file" >&2
+  fi
+}
+
+copy_worktree_directory() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local dir="$3"
+  local src_dir="$source_dir/${dir%/}"
+
+  [ ! -d "$src_dir" ] && return 0
+
+  while IFS= read -r nested_src; do
+    local nested_file="${nested_src#$source_dir/}"
+    copy_one_worktree_file "$source_dir" "$target_dir" "$nested_file"
+  done < <(find "$src_dir" -type d -name .git -prune -o \( -type f -o -type l \) -print)
+}
+
 copy_worktree_files() {
   local source_dir="$1"
   local target_dir="$2"
   local include_file="$source_dir/.worktreeinclude"
 
   [ ! -f "$include_file" ] && return 0
+
+  local source_real target_real
+  source_real=$(cd "$source_dir" && pwd -P)
+  target_real=$(cd "$target_dir" && pwd -P)
+
+  if [ "$source_real" = "$target_real" ]; then
+    return 0
+  fi
 
   local matched_files
   matched_files=$(cd "$source_dir" && git ls-files --others --ignored --exclude-from="$include_file" 2>/dev/null)
@@ -594,10 +654,10 @@ copy_worktree_files() {
     [ -z "$file" ] && continue
 
     local src="$source_dir/$file"
-    if [ -e "$src" ]; then
-      mkdir -p "$target_dir/$(dirname "$file")"
-      cp -Rp "$src" "$target_dir/$file"
-      echo "  Copied: $file"
+    if [ -d "$src" ] && [ ! -L "$src" ]; then
+      copy_worktree_directory "$source_dir" "$target_dir" "$file"
+    else
+      copy_one_worktree_file "$source_dir" "$target_dir" "$file"
     fi
   done <<< "$matched_files"
 }
@@ -636,6 +696,241 @@ JSON_EOF
 
   # Copy files matching .worktreeinclude
   copy_worktree_files "$source_dir" "$target_dir"
+}
+
+apply_setup() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local quiet="${3:-false}"
+
+  if [ "$quiet" = true ]; then
+    ensure_worktreeinclude "$source_dir" >/dev/null
+    run_setup "$source_dir" "$target_dir" >/dev/null
+  else
+    echo "Applying setup from '$source_dir' to '$target_dir'..."
+    ensure_worktreeinclude "$source_dir"
+    run_setup "$source_dir" "$target_dir"
+    echo "Done"
+  fi
+}
+
+setup_workspace() {
+  local source_arg=""
+  local target_arg=""
+  local quiet=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source directory." >&2
+          echo "Usage: wk setup [target-dir] [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        source_arg="$2"
+        shift 2
+        ;;
+      --quiet|-q)
+        quiet=true
+        shift
+        ;;
+      -h|--help)
+        echo "Usage: wk setup [target-dir] [--dir <source-dir>] [--quiet]"
+        return
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk setup [target-dir] [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+      *)
+        if [ -z "$target_arg" ]; then
+          target_arg="$1"
+        else
+          echo "Error: Unknown argument '$1'" >&2
+          echo "Usage: wk setup [target-dir] [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  local source_dir target_dir
+  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
+  target_dir=$(resolve_repo_dir "${target_arg:-$PWD}")
+
+  apply_setup "$source_dir" "$target_dir" "$quiet"
+}
+
+sync_workspaces() {
+  local source_arg=""
+  local quiet=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source directory." >&2
+          echo "Usage: wk sync [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        source_arg="$2"
+        shift 2
+        ;;
+      --quiet|-q)
+        quiet=true
+        shift
+        ;;
+      -h|--help)
+        echo "Usage: wk sync [--dir <source-dir>] [--quiet]"
+        return
+        ;;
+      *)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk sync [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  local source_dir source_real count=0
+  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
+  source_real=$(cd "$source_dir" && pwd -P)
+
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+
+    local target="${line%|*}"
+    local target_real
+    target_real=$(cd "$target" 2>/dev/null && pwd -P)
+    [ -z "$target_real" ] && continue
+    [ "$target_real" = "$source_real" ] && continue
+
+    apply_setup "$source_dir" "$target_real" "$quiet"
+    count=$((count + 1))
+  done < <(cd "$source_dir" && collect_entries)
+
+  if [ "$quiet" != true ]; then
+    echo "Synced $count workspace(s)"
+  fi
+}
+
+resolve_wk_bin() {
+  if [[ "$0" == /* ]] && [ -x "$0" ]; then
+    echo "$0"
+    return
+  fi
+
+  local found
+  found=$(command -v wk 2>/dev/null || true)
+  if [ -n "$found" ]; then
+    echo "$found"
+    return
+  fi
+
+  echo "$HOME/.local/bin/wk"
+}
+
+install_worktree_hook() {
+  local source_arg=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir|-d)
+        if [ $# -lt 2 ]; then
+          echo "Error: $1 requires a source directory." >&2
+          echo "Usage: wk hook install [--dir <source-dir>]" >&2
+          exit 1
+        fi
+        source_arg="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Usage: wk hook install [--dir <source-dir>]"
+        return
+        ;;
+      *)
+        echo "Error: Unknown argument '$1'" >&2
+        echo "Usage: wk hook install [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  local source_dir git_common hooks_dir hook_file wk_bin hook_block
+  source_dir=$(resolve_repo_dir "${source_arg:-$PWD}")
+  ensure_worktreeinclude "$source_dir"
+
+  git_common=$(git -C "$source_dir" rev-parse --git-common-dir 2>/dev/null)
+  if [[ "$git_common" != /* ]]; then
+    git_common="$source_dir/$git_common"
+  fi
+
+  hooks_dir="$git_common/hooks"
+  hook_file="$hooks_dir/post-checkout"
+  wk_bin=$(resolve_wk_bin)
+
+  mkdir -p "$hooks_dir"
+  hook_block=$(cat << EOF
+# >>> worktry hook
+# Auto-applies wk setup when git creates or checks out a worktree.
+WK_BIN="$wk_bin"
+WK_SOURCE_DIR="$source_dir"
+if [ -x "\$WK_BIN" ] && [ -d "\$WK_SOURCE_DIR" ] && [ "\$PWD" != "\$WK_SOURCE_DIR" ]; then
+  "\$WK_BIN" setup --quiet --dir "\$WK_SOURCE_DIR" "\$PWD" >/dev/null 2>&1 || true
+fi
+# <<< worktry hook
+EOF
+)
+
+  if [ -f "$hook_file" ] && grep -q "^# >>> worktry hook$" "$hook_file" 2>/dev/null; then
+    local tmp_file replacement_file
+    tmp_file=$(mktemp)
+    replacement_file=$(mktemp)
+    printf "%s\n" "$hook_block" > "$replacement_file"
+
+    if awk -v replacement_file="$replacement_file" '
+      function print_replacement() {
+        while ((getline line < replacement_file) > 0) {
+          print line
+        }
+        close(replacement_file)
+      }
+
+      /^# >>> worktry hook$/ {
+        print_replacement()
+        replacing = 1
+        next
+      }
+      replacing && /^# <<< worktry hook$/ {
+        replacing = 0
+        next
+      }
+      !replacing { print }
+    ' "$hook_file" > "$tmp_file"; then
+      mv "$tmp_file" "$hook_file"
+    else
+      rm -f "$tmp_file" "$replacement_file"
+      return 1
+    fi
+
+    rm -f "$replacement_file"
+  else
+    if [ ! -f "$hook_file" ]; then
+      printf '#!/bin/sh\n\n' > "$hook_file"
+    else
+      printf '\n' >> "$hook_file"
+    fi
+    printf "%s\n" "$hook_block" >> "$hook_file"
+  fi
+
+  chmod +x "$hook_file"
+  echo "Installed worktry post-checkout hook at $hook_file"
 }
 
 create_worktree() {
@@ -1011,6 +1306,14 @@ go_back() {
 
 # Collect all entries (worktrees + sibling clones, deduplicated)
 # Output: path|type lines
+emit_existing_entry() {
+  local path="$1"
+  local type="$2"
+
+  [ -d "$path" ] || return 0
+  echo "$path|$type"
+}
+
 collect_entries() {
   local main_path
   main_path=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
@@ -1031,7 +1334,7 @@ collect_entries() {
   # Fallback: no siblings found, list current repo's worktrees
   if [[ ${#siblings[@]} -eq 0 ]]; then
     git worktree list 2>/dev/null | while IFS= read -r line; do
-      echo "$(echo "$line" | awk '{print $1}')|worktree"
+      emit_existing_entry "$(echo "$line" | awk '{print $1}')" "worktree"
     done
     return
   fi
@@ -1043,13 +1346,13 @@ collect_entries() {
 
     if [[ "$wt_count" -gt 1 ]]; then
       git -C "$dir" worktree list 2>/dev/null | while IFS= read -r wt_line; do
-        echo "$(echo "$wt_line" | awk '{print $1}')|worktree"
+        emit_existing_entry "$(echo "$wt_line" | awk '{print $1}')" "worktree"
       done
     else
       if [[ ${#siblings[@]} -gt 1 ]]; then
-        echo "$dir|clone"
+        emit_existing_entry "$dir" "clone"
       else
-        echo "$dir|worktree"
+        emit_existing_entry "$dir" "worktree"
       fi
     fi
   done | awk -F'|' '!seen[$1]++'
@@ -1166,6 +1469,31 @@ case "$1" in
     ;;
   list|ls|l)
     list_indexed
+    ;;
+  setup)
+    shift
+    setup_workspace "$@"
+    ;;
+  sync|repair)
+    shift
+    sync_workspaces "$@"
+    ;;
+  hook)
+    shift
+    case "$1" in
+      install)
+        shift
+        install_worktree_hook "$@"
+        ;;
+      *)
+        echo "Usage: wk hook install [--dir <source-dir>]" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  install-hook)
+    shift
+    install_worktree_hook "$@"
     ;;
   config)
     edit_config

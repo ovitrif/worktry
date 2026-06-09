@@ -8,6 +8,8 @@
 - Automatic copying of config files (`.env`, `.idea/`, etc.) via `.worktreeinclude` (gitignore-style patterns)
 - Auto-setup of Claude Code permissions (`.claude/settings.local.json`)
 - Worktree and clone creation with one command (`wk new`, `wk clone`)
+- Setup repair for existing worktrees/clones created outside `wk` (`wk setup`, `wk sync`)
+- Optional Git hook installation to auto-setup future worktrees created by plain `git worktree add`
 - Source directory, source branch, target branch, and interactive prompts for creation commands
 
 Worktrees are created at `.claude/worktrees/<name>` under the selected repo directory, the same location Claude Code uses with `claude -w`.
@@ -50,12 +52,20 @@ Main bash script containing:
 - `run_interactive_worktree_menu()` -- guides common worktree creation flows
 - `run_interactive_clone_menu()` -- guides common clone creation flows
 - `run_interactive_menu()` -- top-level interactive setup menu
+- `copy_one_worktree_file()` -- copies one matched file or symlink, skipping unchanged files and nested Git internals
+- `copy_worktree_directory()` -- expands matched directories file-by-file while pruning embedded `.git` directories
 - `copy_worktree_files()` -- copies untracked files matching `.worktreeinclude` gitignore-style patterns
 - `run_setup()` -- creates Claude Code permissions and copies config files
+- `apply_setup()` -- applies setup from a source repo to a target workspace with optional quiet output
+- `setup_workspace()` -- applies setup to one existing worktree or clone
+- `sync_workspaces()` -- applies setup to all listed workspaces
+- `resolve_wk_bin()` -- resolves the current `wk` executable for generated hooks
+- `install_worktree_hook()` -- installs or updates the managed Git post-checkout hook
 - `create_worktree()` -- create worktree at `.claude/worktrees/<name>` with setup
 - `clone_repo()` -- clone repo as sibling or apply setup to existing clone
 - `go_to_worktree()` -- navigate by branch name or list index
 - `go_back()` -- navigate to main worktree
+- `emit_existing_entry()` -- emits only workspace paths that still exist on disk
 - `collect_entries()` -- find all worktrees and sibling clones (unified, deduplicated)
 - `get_path_for_index()` -- resolves a numeric list index to a worktree or clone path
 - `go_to_index()` -- navigate by numeric list index
